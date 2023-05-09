@@ -2,13 +2,16 @@ import torch
 import wfdb
 import os
 import numpy as np
+from pecg import Preprocessing as Pre
+from wfdb import processing
+
 
 def split_records_to_intervals(record, annotation, sample_length, channel, overlap):
     """split each of the records to intervals and the annotation to a binar 1D vector 
 
     Args:
-        record (wfdb.record): the record object of wfbd
-        annotation (wfbd.annotation): the annotation object of wfbd
+        record (wfdb.record): the record object of wfdb
+        annotation (wfdb.annotation): the annotation object of wfdb
         sample_length (float/int): the length of the required intervals in seconds 
         channel (int): if 0, take the first lead, if 1 take the second lead
         overlap (bool or float/int): if False, split without overlap. Else splitting the records with overlap (value in seconds!)
@@ -35,31 +38,60 @@ def split_records_to_intervals(record, annotation, sample_length, channel, overl
 
     num_of_samples_in_interval = fs*sample_length
     if overlap == False: # split the record without overlap
-        num_of_intervals = int(np.floor(len(signal)/num_of_samples_in_interval))
-        intervals = signal[:num_of_intervals*num_of_samples_in_interval].reshape(num_of_intervals, num_of_samples_in_interval)
-        annot_intervals = annots_signal[:num_of_intervals*num_of_samples_in_interval].reshape(num_of_intervals, num_of_samples_in_interval)
-
+        intervals, labels = segment_and_label(signal, annots_signal, num_of_samples_in_interval, 0)
     else:
-        raise NotImplementedError('need to implement the overlap case!')
+        overlap_in_samples = overlap*fs
+        intervals, labels = segment_and_label(signal, annots_signal, num_of_samples_in_interval,  overlap_in_samples)
+    return intervals, labels
 
-    #remove all interval that has mixed annotations:
-    sum_of_rows = torch.sum(annot_intervals, axis=1)
-    only_N_intervals_idx = torch.where(sum_of_rows == 0)
-    only_AF_intervals_idx = torch.where(sum_of_rows == num_of_samples_in_interval)
-    final_annots_indices = torch.hstack([only_AF_intervals_idx[0],only_N_intervals_idx[0]])
-    final_annots = sum_of_rows[final_annots_indices]/num_of_samples_in_interval #to get a binar signal
+def segment_and_label(x, y, m, w):
+    """
+    Segments the time series x into segments of length m with overlap w,
+    and creates a label vector for each segment based on the labels in y.
 
-    #get the final intervals after filtering the mixed annotation:
-    intervals = intervals[final_annots_indices, :]
+    Args:
+    - x: a 1D PyTorch tensor representing the time series
+    - y: a 1D PyTorch tensor representing the label vector
+    - m: an integer representing the length of each segment
+    - w: an integer representing the overlap between segments
 
-    return intervals, final_annots
+    Returns:
+    - segments: a 2D PyTorch tensor of shape (num_segments, m),
+      where num_segments is the number of segments created from x
+    - labels: a 1D PyTorch tensor of shape (num_segments,) representing
+      the label vector for each segment
+    """
+    
+    assert x.shape[0] == y.shape[0], 'length of time series should be equal to annotations signal'
 
+    num_segments = (x.shape[0] - m) // (m - w) + 1  # compute number of segments
+    segments = torch.zeros(num_segments, m)  # initialize segments tensor
+    labels = torch.zeros(num_segments, dtype=torch.int64)  # initialize labels tensor
 
+    for i in range(num_segments):
+        start = i * (m - w)
+        end = start + m
+        segment = x[start:end]
+        label = y[start:end]
+        if torch.all(label == 0):
+            labels[i] = 0
+            segments[i] = segment
+        elif torch.all(label == 1):
+            labels[i] = 1
+            segments[i] = segment
 
+    # remove any segments that do not have a valid label
+    final_segments = segments[segments.sum(axis=1)!=0, :]
+    final_labels = labels[segments.sum(axis=1)!=0]
 
+    return final_segments, final_labels
 
-
-
+def bsqi(signal , fs):
+    xqrs_inds = processing.xqrs_detect(signal, fs, verbose=False)
+    gqrs_inds = processing.gqrs_detect(signal, fs)
+    pre_pecg = Pre.Preprocessing(signal, fs)
+    bsqi = pre_pecg.bsqi(xqrs_inds, gqrs_inds)   
+    return bsqi
 
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
@@ -67,7 +99,21 @@ if __name__ == '__main__':
     file_name = os.path.join(folder_path, name)
     record = wfdb.rdrecord(file_name)
     annotation = wfdb.rdann(file_name, 'atr')
-    split_records_to_intervals(record, annotation, sample_length = 10, channel = 0, overlap = True)
+    intervals, final_annots = split_records_to_intervals(record, annotation, sample_length = 10, channel = 0, overlap = 3)
+
+    ## TESTS :
+    # test1 verify that no mixed labels intervals are being created:
+    x = torch.rand(100000)
+    y = torch.zeros(100000)
+    y[::2] = 1
+    interval, labels = segment_and_label(x, y, 100, 0)
+    assert len(interval) == 0, 'In this tests all intervals should have mixed labels so no intervals should be created'
+
+    # test2 verify that if there are no mixed labels, all the intervals are being created:
+    x = torch.rand(100000)
+    y = torch.zeros(100000)
+    interval, labels = segment_and_label(x, y, 100, 0)
+    assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'
 
 
 

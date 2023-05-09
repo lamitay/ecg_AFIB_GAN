@@ -1,8 +1,9 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-    """copy code from https://github.com/mah533/Augmentation-of-ECG-Training-Dataset-with-CGAN
-    """
+"""copy code from https://github.com/mah533/Augmentation-of-ECG-Training-Dataset-with-CGAN"""
+
+
 def conv_block(in_planes, out_planes, stride=1, groups=1, dilation=1):
     return nn.Conv1d(
         in_planes,
