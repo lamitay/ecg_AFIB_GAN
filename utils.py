@@ -1,9 +1,60 @@
 import torch
 import wfdb
+from datetime import datetime
 import os
 import numpy as np
 from pecg import Preprocessing as Pre
 from wfdb import processing
+import yaml
+
+
+def load_config(config_path):
+    assert os.path.exists(config_path), f"Invalid config path: {config_path}"
+
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    return config
+
+def build_exp_dirs(exp_base_path, exp_name):
+    assert os.path.exists(exp_base_path), f"Invalid experiments base path: {exp_base_path}"
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    exp_dir = os.path.join(exp_base_path, f"{exp_name}_{timestamp}")
+
+    assert not os.path.exists(exp_dir), f"Experiment directory already exists: {exp_dir}"
+
+    os.makedirs(exp_dir)
+    # os.makedirs(os.path.join(exp_dir, "data"))
+    os.makedirs(os.path.join(exp_dir, "models"))
+    os.makedirs(os.path.join(exp_dir, "results"))
+    os.makedirs(os.path.join(exp_dir, "logs"))
+
+    return exp_dir
+
+
+def get_record_names_from_folder(folder_path):
+    assert os.path.exists(folder_path), f"Invalid folder path: {folder_path}"
+    record_names = []
+    for file in os.listdir(folder_path):
+        if file.endswith('.hea'):  # we find only the .hea files.
+            if file[:-4] == '00735' or file[:-4] == '03665':
+                continue
+            record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
+    return record_names
+
+
+def split_records_train_val_test(record_names, train_prec=80):
+    #split records to training and test to 80% - 20%
+    num_of_train_val_records = round(len(record_names)*(train_prec/100))
+    train_val_records_names = record_names[:num_of_train_val_records]
+    test_records_names = record_names[num_of_train_val_records:]
+    # Split train-validation to 80-20 % of the train_val
+    num_of_train_records = round(len(train_val_records_names)*(train_prec/100))
+    train_records_names = train_val_records_names[:num_of_train_records]
+    val_records_names = train_val_records_names[num_of_train_records:]
+    print(f"Training set: {len(train_records_names)} records\nValidation set: {len(val_records_names)} records\nTest set: {len(test_records_names)} records")
+    
+    return train_records_names, val_records_names, test_records_names
 
 
 def split_records_to_intervals(record, annotation, sample_length, channel, overlap):
