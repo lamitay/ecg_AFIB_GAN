@@ -41,11 +41,11 @@ class Trainer:
             num_train_examples = 0
 
             for inputs, targets in self.train_loader:
-                inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
+                inputs = inputs.to(self.device).unsqueeze(1)
+                targets = targets.to(self.device).float()
 
                 self.optimizer.zero_grad()
-                outputs = self.model(inputs)
+                outputs = self.model(inputs).squeeze()
                 loss = self.criterion(outputs, targets)
 
                 total_train_loss += loss.item() * inputs.size(0)

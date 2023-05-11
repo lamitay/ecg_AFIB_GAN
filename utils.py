@@ -6,6 +6,8 @@ import numpy as np
 from pecg import Preprocessing as Pre
 from wfdb import processing
 import yaml
+from torchsummary import summary
+from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 
 
 def load_config(config_path):
@@ -18,7 +20,7 @@ def load_config(config_path):
 def build_exp_dirs(exp_base_path, exp_name):
     assert os.path.exists(exp_base_path), f"Invalid experiments base path: {exp_base_path}"
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H_%M_%S")
     exp_dir = os.path.join(exp_base_path, f"{exp_name}_{timestamp}")
 
     assert not os.path.exists(exp_dir), f"Experiment directory already exists: {exp_dir}"
@@ -166,9 +168,56 @@ if __name__ == '__main__':
     interval, labels = segment_and_label(x, y, 100, 0)
     assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'
 
+def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500):
+    """
+    Prints the model summary including the model architecture, number of parameters,
+    and the total number of FLOPs (Floating Point Operations) required for a given input size.
 
+    Args:
+        model (torch.nn.Module): The PyTorch model to summarize.
+        batch_size (int): The batch size used for computing FLOPs.
+        num_ch (int, optional): The number of input channels. Defaults to 1.
+        samp_per_record (int, optional): The number of samples per record. Defaults to 2500.
 
+    Example:
+        >>> model = MyModel()
+        >>> batch_size = 64
+        >>> num_ch = 1
+        >>> samp_per_record = 2500
+        >>> print_model_summary(model, batch_size, num_ch, samp_per_record)
+        Output: Prints the model summary, parameter count, and total number of FLOPs.
+    """
+    summary(model, input_size=(num_ch, samp_per_record))
+    # Create a sample input tensor
+    input_size = (batch_size, num_ch, samp_per_record)
+    rand_inputs = torch.randn(*input_size)
+    # Compute FLOPs
+    flops = FlopCountAnalysis(model, rand_inputs)
+    print(flop_count_table(flops))
+    print(f"Total number of FLOPs: {humanize_number(flops.total())} Flops")
 
+def humanize_number(number):
+    """
+    Converts a large number into a human-readable format with appropriate unit suffixes.
 
+    Args:
+        number (float or int): The number to be formatted.
 
+    Returns:
+        str: The formatted number with unit suffix.
 
+    Example:
+        >>> number = 1512015806464
+        >>> formatted_number = humanize_number(number)
+        >>> print(formatted_number)
+        Output: '1.51T'
+    """
+
+    units = ['', 'K', 'M', 'B', 'T']
+    unit_index = 0
+    while abs(number) >= 1000 and unit_index < len(units) - 1:
+        number /= 1000.0
+        unit_index += 1
+
+    formatted_number = '{:.2f}{}'.format(number, units[unit_index])
+    return formatted_number

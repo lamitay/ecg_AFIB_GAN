@@ -11,6 +11,7 @@ from trainer import Trainer
 from model import EcgResNet34
 from dataset import *
 
+
 def main(config):
     
     # Define the experiment directories
@@ -45,14 +46,21 @@ def main(config):
 
     # Model and optimizers config
     model = EcgResNet34(num_classes=1)
+    print_model_summary(model, config['batch_size'])
+
     if config['optimizer'] == 'AdamW':
         optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
     if config['loss'] == 'cross_entropy':
         criterion = nn.CrossEntropyLoss()
     if config['lr_scheduler'] == 'ReduceLROnPlateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, verbose=True)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    if config['user'] == 'Noga':
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     model.to(device)
+
 
     # Training
     trainer = Trainer(model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task)
