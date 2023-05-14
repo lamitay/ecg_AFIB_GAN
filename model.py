@@ -272,7 +272,7 @@ class EcgResNet34(nn.Module):
     def __init__(
         self,
         layers=(1, 5, 5, 5),
-        num_classes=1000,
+        num_classes=2,
         zero_init_residual=False,
         groups=1,
         width_per_group=64,

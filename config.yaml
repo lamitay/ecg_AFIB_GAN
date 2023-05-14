@@ -1,0 +1,19 @@
+seed: 336018
+
+# Experiment configs
+user: 'Amitay'
+experiment_name: 'Classifier_train'
+
+# ClearML configs
+clearml: True
+
+# Trainer configs
+train_prec: 80
+batch_size: 32
+lr: 0.0001
+loss: 'cross_entropy'
+optimizer: 'AdamW'
+lr_scheduler: 'ReduceLROnPlateau'
+epochs: 30
+early_stopping_patience: 10
+output_model_path: 'model.pth'

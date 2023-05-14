@@ -54,7 +54,7 @@ class AF_dataset(Dataset):
             signal = self.transform(signal)
 
         return signal, label
-     
+
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
     record_names = []
