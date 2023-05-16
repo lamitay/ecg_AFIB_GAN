@@ -8,6 +8,7 @@ from wfdb import processing
 import yaml
 from torchsummary import summary
 from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
+import pandas as pd
 
 
 def load_config(config_path):
@@ -59,8 +60,8 @@ def split_records_train_val_test(record_names, train_prec=80):
     return train_records_names, val_records_names, test_records_names
 
 
-def split_records_to_intervals(record, annotation, sample_length, channel, overlap):
-    """split each of the records to intervals and the annotation to a binar 1D vector 
+def split_records_to_intervals(record, annotation, qrs, sample_length, channel, overlap):
+    """split each of the records to intervals and the annotation to a binary 1D vector 
 
     Args:
         record (wfdb.record): the record object of wfdb
@@ -69,15 +70,13 @@ def split_records_to_intervals(record, annotation, sample_length, channel, overl
         channel (int): if 0, take the first lead, if 1 take the second lead
         overlap (bool or float/int): if False, split without overlap. Else splitting the records with overlap (value in seconds!)
 
-    Raises:
-        NotImplementedError: needs to implement the overlap option
-
     Returns:
         torch.Tensors: intervals, labels
     """
     signal = torch.Tensor(record.p_signal[:, channel]) #start the signal from the index we got annotation for 
     fs = record.fs
-
+    meta_data = {}
+    meta_data['record_file_name'] = record.file_name[0]
     #create annotation signal with the length of records:
     annots_signal = torch.zeros_like(signal)
     for i, idx in enumerate(annotation.sample):
@@ -91,13 +90,13 @@ def split_records_to_intervals(record, annotation, sample_length, channel, overl
 
     num_of_samples_in_interval = fs*sample_length
     if overlap == False: # split the record without overlap
-        intervals, labels = segment_and_label(signal, annots_signal, num_of_samples_in_interval, 0)
+        intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval, 0, fs)
     else:
         overlap_in_samples = overlap*fs
-        intervals, labels = segment_and_label(signal, annots_signal, num_of_samples_in_interval,  overlap_in_samples)
-    return intervals, labels
+        intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval,  overlap_in_samples, fs)
+    return intervals, labels, meta_data
 
-def segment_and_label(x, y, m, w):
+def segment_and_label(x, y, qrs, m, w, fs):
     """
     Segments the time series x into segments of length m with overlap w,
     and creates a label vector for each segment based on the labels in y.
@@ -120,7 +119,8 @@ def segment_and_label(x, y, m, w):
     num_segments = (x.shape[0] - m) // (m - w) + 1  # compute number of segments
     segments = torch.zeros(num_segments, m)  # initialize segments tensor
     labels = torch.zeros(num_segments, dtype=torch.int64)  # initialize labels tensor
-
+    num_of_bits = torch.zeros(num_segments, dtype=torch.int64)
+    bsqi_scores = torch.zeros(num_segments, dtype=torch.int64)
     for i in range(num_segments):
         start = i * (m - w)
         end = start + m
@@ -132,12 +132,23 @@ def segment_and_label(x, y, m, w):
         elif torch.all(label == 1):
             labels[i] = 1
             segments[i] = segment
+        
+        #calculate number of bits in segment:
+        num_of_bits[i] = find_number_of_bits(start, end, qrs)
+        # bsqi_scores[i] = bsqi(segment.numpy(), fs)
 
     # remove any segments that do not have a valid label
     final_segments = segments[segments.sum(axis=1)!=0, :]
     final_labels = labels[segments.sum(axis=1)!=0]
+    num_of_bit = num_of_bits[segments.sum(axis=1)!=0]
+    bsqi_scores = bsqi_scores[segments.sum(axis=1)!=0]
 
-    return final_segments, final_labels
+    return final_segments, final_labels, num_of_bit, bsqi_scores
+
+def find_number_of_bits(i, j, qrs):
+    start_index = np.searchsorted(qrs, i, side='left')
+    end_index = np.searchsorted(qrs, j, side='right')
+    return end_index - start_index
 
 def bsqi(signal , fs):
     xqrs_inds = processing.xqrs_detect(signal, fs, verbose=False)
@@ -146,29 +157,47 @@ def bsqi(signal , fs):
     bsqi = pre_pecg.bsqi(xqrs_inds, gqrs_inds)   
     return bsqi
 
-if __name__ == '__main__':
-    folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
-    name = '04015'
-    file_name = os.path.join(folder_path, name)
-    record = wfdb.rdrecord(file_name)
-    annotation = wfdb.rdann(file_name, 'atr')
-    intervals, final_annots = split_records_to_intervals(record, annotation, sample_length = 10, channel = 0, overlap = 3)
+def create_dfs(segments, labels, meta_data):
+    raw_data_df = pd.DataFrame(segments)
+    labels_df = pd.DataFrame(labels)
+    labels_df.columns = ['label']
+    meta_data_df = pd.DataFrame(meta_data)
+    return raw_data_df, labels_df, meta_data_df
 
-    ## TESTS :
-    # test1 verify that no mixed labels intervals are being created:
-    x = torch.rand(100000)
-    y = torch.zeros(100000)
-    y[::2] = 1
-    interval, labels = segment_and_label(x, y, 100, 0)
-    assert len(interval) == 0, 'In this tests all intervals should have mixed labels so no intervals should be created'
+def create_dataset(folder_path, records_names, path_to_save_dataset, sample_length, channel, overlap):
 
-    # test2 verify that if there are no mixed labels, all the intervals are being created:
-    x = torch.rand(100000)
-    y = torch.zeros(100000)
-    interval, labels = segment_and_label(x, y, 100, 0)
-    assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'
+    data_dfs = []
+    labels_dfs = []
+    meta_data_dfs = []
+    for name in records_names:
+        file_name = os.path.join(folder_path, name)
+        record = wfdb.rdrecord(file_name)
+        annotation = wfdb.rdann(file_name, 'atr')
+        qrs = wfdb.rdann(file_name, 'qrs')
+        intervals, annots, meta_data = split_records_to_intervals(record, 
+                                                                  annotation, 
+                                                                  qrs,
+                                                                  sample_length = sample_length, #in seconds!
+                                                                  channel = channel, # lead
+                                                                  overlap = overlap)
+        #convert to dataframes:
+        raw_data_df, labels_df, meta_data_df = create_dfs(intervals, annots, meta_data)
+        data_dfs.append(raw_data_df)
+        labels_dfs.append(labels_df)
+        meta_data_dfs.append(meta_data_df)
+    
+    # Concat dataframes fom all records and save in the dataset folder
+    raw_data_final = pd.concat(data_dfs).to_csv(os.path.join(path_to_save_dataset, 'data.csv'))
+    labels_final = pd.concat(labels_dfs).to_csv(os.path.join(path_to_save_dataset, 'labels.csv'))
+    meta_data_final = pd.concat(meta_data_dfs).to_csv(os.path.join(path_to_save_dataset, 'meta_data.csv'))
+    
 
-def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500):
+
+
+
+        
+
+def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500, device='cpu'):
     """
     Prints the model summary including the model architecture, number of parameters,
     and the total number of FLOPs (Floating Point Operations) required for a given input size.
@@ -178,6 +207,7 @@ def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500):
         batch_size (int): The batch size used for computing FLOPs.
         num_ch (int, optional): The number of input channels. Defaults to 1.
         samp_per_record (int, optional): The number of samples per record. Defaults to 2500.
+        device (string, optional):   
 
     Example:
         >>> model = MyModel()
@@ -190,7 +220,7 @@ def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500):
     summary(model, input_size=(num_ch, samp_per_record))
     # Create a sample input tensor
     input_size = (batch_size, num_ch, samp_per_record)
-    rand_inputs = torch.randn(*input_size)
+    rand_inputs = torch.randn(*input_size).to(device)
     # Compute FLOPs
     flops = FlopCountAnalysis(model, rand_inputs)
     print(flop_count_table(flops))
@@ -221,3 +251,29 @@ def humanize_number(number):
 
     formatted_number = '{:.2f}{}'.format(number, units[unit_index])
     return formatted_number
+
+
+
+
+if __name__ == '__main__':
+    folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
+    name = '04015'
+    file_name = os.path.join(folder_path, name)
+    record = wfdb.rdrecord(file_name)
+    annotation = wfdb.rdann(file_name, 'atr')
+    qrs = wfdb.rdann(file_name, 'qrs')
+    intervals, final_annots, meta_data = split_records_to_intervals(record, annotation, qrs, sample_length = 10, channel = 0, overlap = 3)
+    create_dataset(intervals, final_annots, meta_data, 'path_to_save')
+    ## TESTS :
+    # test1 verify that no mixed labels intervals are being created:
+    x = torch.rand(100000)
+    y = torch.zeros(100000)
+    y[::2] = 1
+    interval, labels = segment_and_label(x, y, 100, 0)
+    assert len(interval) == 0, 'In this tests all intervals should have mixed labels so no intervals should be created'
+
+    # test2 verify that if there are no mixed labels, all the intervals are being created:
+    x = torch.rand(100000)
+    y = torch.zeros(100000)
+    interval, labels = segment_and_label(x, y, 100, 0)
+    assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'

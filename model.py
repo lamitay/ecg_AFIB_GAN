@@ -384,6 +384,7 @@ class EcgResNet34(nn.Module):
         x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)
+        x = nn.Sigmoid()(x)
 
         return x
 

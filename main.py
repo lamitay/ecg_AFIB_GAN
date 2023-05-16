@@ -2,6 +2,7 @@ import argparse
 import logging
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -10,6 +11,7 @@ from utils import *
 from trainer import Trainer
 from model import EcgResNet34
 from dataset import *
+from trasform import Normalize
 
 
 def main(config):
@@ -18,9 +20,13 @@ def main(config):
     if config['user'] == 'Noga':
         data_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
         exp_base_dir = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/exp/'
-    else:
+    elif config['user'] == 'Amitay':
         data_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset/files.nosync/'
         exp_base_dir = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/experiments/'
+    elif config['user'] == 'tcml':
+        exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
+
     
     exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
@@ -37,31 +43,29 @@ def main(config):
     train_records_names, validation_records_names, test_records_names = split_records_train_val_test(record_names, config['train_prec'])
 
     # Datasets and Dataloaders 
-    train_dataset = AF_dataset(data_folder_path, train_records_names, sample_length=10, channel=0, overlap=False)
-    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
-    validation_dataset = AF_dataset(data_folder_path, validation_records_names, sample_length=10, channel=0, overlap=False)
-    validation_loader = DataLoader(validation_dataset, batch_size=config['batch_size'], shuffle=False)
-    test_dataset = AF_dataset(data_folder_path, test_records_names, sample_length=10, channel=0, overlap=False)
-    test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False)
+    train_dataset = AF_dataset(data_folder_path, train_records_names, sample_length=config['sample_length'], channel=0, overlap=config['overlap'], transform = transforms.Compose([Normalize()]))
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, num_workers=4)
+    validation_dataset = AF_dataset(data_folder_path, validation_records_names, sample_length=config['sample_length'], channel=0, overlap=config['overlap'], transform = transforms.Compose([Normalize()]))
+    validation_loader = DataLoader(validation_dataset, batch_size=config['batch_size'], shuffle=False, num_workers=4)
+    test_dataset = AF_dataset(data_folder_path, test_records_names, sample_length=config['sample_length'], channel=0, overlap=config['overlap'], transform = transforms.Compose([Normalize()]))
+    test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False,  num_workers=4)
 
     # Model and optimizers config
     model = EcgResNet34(num_classes=1)
-    print_model_summary(model, config['batch_size'])
-
-    if config['optimizer'] == 'AdamW':
-        optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
-    if config['loss'] == 'cross_entropy':
-        criterion = nn.CrossEntropyLoss()
-    if config['lr_scheduler'] == 'ReduceLROnPlateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, verbose=True)
-    
     if config['user'] == 'Noga':
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     model.to(device)
+    print_model_summary(model, config['batch_size'], device=device)
 
-
+    if config['optimizer'] == 'AdamW':
+        optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
+    if config['loss'] == 'binary_cross_entropy':
+        criterion = F.binary_cross_entropy
+    if config['lr_scheduler'] == 'ReduceLROnPlateau':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, verbose=True)
+    
     # Training
     trainer = Trainer(model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task)
     trainer.train()

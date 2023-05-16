@@ -35,12 +35,11 @@ class Trainer:
         best_loss = float('inf')
         epochs_without_improvement = 0
 
-        for epoch in tqdm(range(self.config['epochs'])):
+        for epoch in tqdm(range(self.config['epochs'])):            
             self.model.train()
             total_train_loss = 0.0
-            num_train_examples = 0
-
-            for inputs, targets in self.train_loader:
+            num_train_examples = 0  
+            for inputs, targets in tqdm(self.train_loader):
                 inputs = inputs.to(self.device).unsqueeze(1)
                 targets = targets.to(self.device).float()
 
@@ -91,7 +90,7 @@ class Trainer:
         num_examples = 0
 
         with torch.no_grad():
-            for inputs, targets in loader:
+            for inputs, targets in tqdm(loader):
                 inputs = inputs.to(self.device)
                 targets = targets.to(self.device)
 
