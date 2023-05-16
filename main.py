@@ -18,14 +18,15 @@ def main(config):
     
     # Define the experiment directories
     if config['user'] == 'Noga':
-        data_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
+        records_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
         exp_base_dir = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/exp/'
+        data_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_30_10_0/'
     elif config['user'] == 'Amitay':
-        data_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset/files.nosync/'
+        records_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset/files.nosync/'
         exp_base_dir = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/experiments/'
     elif config['user'] == 'tcml':
         exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
-        data_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
+        records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
 
     
     exp_name = f"{config['user']}_{config['experiment_name']}"
@@ -39,15 +40,15 @@ def main(config):
     torch.manual_seed(config['seed'])
 
     # Data
-    record_names = get_record_names_from_folder(data_folder_path)
+    record_names = get_record_names_from_folder(records_folder_path)
     train_records_names, validation_records_names, test_records_names = split_records_train_val_test(record_names, config['train_prec'])
 
     # Datasets and Dataloaders 
-    train_dataset = AF_dataset(data_folder_path, train_records_names, sample_length=config['sample_length'], channel=0, overlap=config['overlap'], transform = transforms.Compose([Normalize()]))
+    train_dataset = AF_dataset(data_folder_path, train_records_names, transform = transforms.Compose([Normalize()]))
     train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, num_workers=4)
-    validation_dataset = AF_dataset(data_folder_path, validation_records_names, sample_length=config['sample_length'], channel=0, overlap=config['overlap'], transform = transforms.Compose([Normalize()]))
+    validation_dataset = AF_dataset(data_folder_path, validation_records_names, transform = transforms.Compose([Normalize()]))
     validation_loader = DataLoader(validation_dataset, batch_size=config['batch_size'], shuffle=False, num_workers=4)
-    test_dataset = AF_dataset(data_folder_path, test_records_names, sample_length=config['sample_length'], channel=0, overlap=config['overlap'], transform = transforms.Compose([Normalize()]))
+    test_dataset = AF_dataset(data_folder_path, test_records_names, transform = transforms.Compose([Normalize()]))
     test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False,  num_workers=4)
 
     # Model and optimizers config

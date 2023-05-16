@@ -3,65 +3,42 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import wfdb
 import os
+os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
+
 from utils import create_dataset
 import matplotlib.pyplot as plt 
 import numpy as np
 import pandas as pd
 
 class AF_dataset(Dataset):
-    def __init__(self, folder_path, record_names, sample_length, channel, overlap = 0, transform = False, data_quality_thr = None):
+    def __init__(self, dataset_folder_path, record_names, transform = False, data_quality_thr = None):
         super().__init__()
         self.transform = transform
-        # # load all records from files:
-        # X = []
-        # y = []
-        # for name in record_names:
-        #     file_name = os.path.join(folder_path, name)
-        #     record = wfdb.rdrecord(file_name)
-        #     annotation = wfdb.rdann(file_name, 'atr')
-        #     intervals, annots = split_records_to_intervals(record, 
-        #                                                    annotation, 
-        #                                                    sample_length = sample_length, #in seconds!
-        #                                                    channel = channel, # lead
-        #                                                    overlap = overlap)
-        #     X.append(intervals)
-        #     y.append(annots)
-
-        # X = torch.vstack(X)
-        # y = torch.hstack(y)
-
-        dataset_folder_path = os.path.join(folder_path,f'dataset_{sample_length}_{overlap}_{channel}')
-
-        # Check if dataset already exist:
-        if os.path.exists(dataset_folder_path):
-            print('Dataset folder exist, Load csv files from folder')
-        else:
-            print('The dataset with current properties does not exist, needs to perform preprocessing....\n This might take a while...')
-            print('.........')
-            os.mkdir(dataset_folder_path)
-            create_dataset(folder_path, record_names, dataset_folder_path, sample_length, channel, overlap)
-            print('Finish preprocessing dataset!')
         # Load csv files from dataset folder:
-        X = pd.read_csv(os.path.join(dataset_folder_path,'data.csv'))
+        X = pd.read_hdf(os.path.join(dataset_folder_path,'data.h5'))
         y = pd.read_csv(os.path.join(dataset_folder_path,'labels.csv'))
         meta_data = pd.read_csv(os.path.join(dataset_folder_path,'meta_data.csv')) 
+        meta_data['record_file_name'] = meta_data['record_file_name'].str[:-4]#remove ".dat" from the record names
 
-        print(f'created dataset with {X.shape[0]} intervals , each with {X.shape[1]} samples')
-        self.X = X
-        self.y = y
-        self.meta_data = meta_data
-
+        self.X = X[meta_data['record_file_name'].isin(record_names)]
+        self.y = y[meta_data['record_file_name'].isin(record_names)]
+        self.meta_data = meta_data[meta_data['record_file_name'].isin(record_names)]
+        print(f'created dataset with {self.X.shape[0]} intervals , each with {self.X.shape[1]} samples')
         # if data quality threshold is provided, remove signals that has a bsqi below threshold
-        # if isinstance(data_quality_thr, float):
-        #     self.X = self.X[bsqi_values >= data_quality_thr]
-        #     self.y = self.y[bsqi_values >= data_quality_thr]
+        if isinstance(data_quality_thr, float):
+            self.X = X[meta_data['bsqi_scores'] > data_quality_thr]
+            self.y = y[meta_data['bsqi_scores'] > data_quality_thr]
+            self.meta_data = meta_data[meta_data['bsqi_scores'] > data_quality_thr]
+            print(f'Using bsqi scores to filter dataset with threshold of {data_quality_thr}')
+            print(f"Number of samples that has been filtered are {(meta_data['bsqi_scores'] < data_quality_thr).sum()}") 
+            assert len(self.X) > 0 ,'The bsqi filtering filtered all the samples, please choose a lower threshold and run again'
 
     def __len__(self):
         return len(self.y)
     
     def __getitem__(self, index):
-        signal = self.X[index,:]
-        label = self.y[index]
+        signal = torch.tensor(self.X.iloc[index])
+        label = self.y.iloc[index][1]
 
         if self.transform:
             signal = self.transform(signal)
@@ -69,14 +46,14 @@ class AF_dataset(Dataset):
         return signal, label
 
 if __name__ == '__main__':
-    folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
+    folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_30_10_0/'
     record_names = []
-    for file in os.listdir(folder_path):
+    for file in os.listdir('C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files'):
         if file.endswith('.hea'):  # we find only the .hea files.
             record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
     
-    ds = AF_dataset(folder_path, record_names, sample_length=3600, channel=0, data_quality_thr=0.7)
-    fs = ds.fs
+    ds = AF_dataset(folder_path, record_names[0:10], sample_length=30, channel=0, overlap=10, data_quality_thr=0.8)
+    fs = 250
     for i, idx in enumerate(np.random.randint(0, len(ds) , 6)):
         signal, label = ds[idx]
         plt.subplot(3, 2, i + 1)

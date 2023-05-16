@@ -96,7 +96,7 @@ def split_records_to_intervals(record, annotation, qrs, sample_length, channel, 
         intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval,  overlap_in_samples, fs)
     return intervals, labels, meta_data
 
-def segment_and_label(x, y, qrs, m, w, fs):
+def segment_and_label(x, y, qrs, m, w, fs, calc_bsqi=False):
     """
     Segments the time series x into segments of length m with overlap w,
     and creates a label vector for each segment based on the labels in y.
@@ -135,7 +135,9 @@ def segment_and_label(x, y, qrs, m, w, fs):
         
         #calculate number of bits in segment:
         num_of_bits[i] = find_number_of_bits(start, end, qrs)
-        # bsqi_scores[i] = bsqi(segment.numpy(), fs)
+
+        if calc_bsqi:# Currently this calculation takes too many time so always false
+            bsqi_scores[i] = bsqi(segment.numpy(), fs)
 
     # remove any segments that do not have a valid label
     final_segments = segments[segments.sum(axis=1)!=0, :]
@@ -165,7 +167,20 @@ def create_dfs(segments, labels, meta_data):
     return raw_data_df, labels_df, meta_data_df
 
 def create_dataset(folder_path, records_names, path_to_save_dataset, sample_length, channel, overlap):
+    """create dataset folder from original 10 hours records
 
+    Args:
+        folder_path (string): path to records path
+        records_names (list): records name to crate dataset with
+        path_to_save_dataset (string): path to where dataset folder will be saved
+        sample_length (int): length of each segment in seconds
+        channel (int): whether to use the first channel (0) or the second (1)
+        overlap (int): overlap between segments in seconds
+    """
+    path_to_save_dataset = os.path.join(path_to_save_dataset,f'dataset_len{sample_length}_overlab{overlap}_chan{channel}')
+    # Check if dataset already exist:
+    assert not os.path.exists(path_to_save_dataset), 'Dataset folder already exist, please remove exist folder'
+    os.mkdir(path_to_save_dataset)
     data_dfs = []
     labels_dfs = []
     meta_data_dfs = []
@@ -181,21 +196,19 @@ def create_dataset(folder_path, records_names, path_to_save_dataset, sample_leng
                                                                   channel = channel, # lead
                                                                   overlap = overlap)
         #convert to dataframes:
-        raw_data_df, labels_df, meta_data_df = create_dfs(intervals, annots, meta_data)
+        raw_data_df, labels_df, meta_data_df = create_dfs(intervals.to(torch.float16), annots, meta_data)
         data_dfs.append(raw_data_df)
         labels_dfs.append(labels_df)
         meta_data_dfs.append(meta_data_df)
     
     # Concat dataframes fom all records and save in the dataset folder
-    raw_data_final = pd.concat(data_dfs).to_csv(os.path.join(path_to_save_dataset, 'data.csv'))
-    labels_final = pd.concat(labels_dfs).to_csv(os.path.join(path_to_save_dataset, 'labels.csv'))
-    meta_data_final = pd.concat(meta_data_dfs).to_csv(os.path.join(path_to_save_dataset, 'meta_data.csv'))
+    pd.concat(data_dfs, ignore_index=True).to_hdf(os.path.join(path_to_save_dataset, 'data.h5'), key='df', mode='w')
+    pd.concat(labels_dfs, ignore_index=True).to_csv(os.path.join(path_to_save_dataset, 'labels.csv'))
+    pd.concat(meta_data_dfs, ignore_index=True).to_csv(os.path.join(path_to_save_dataset, 'meta_data.csv'))
+    print(f'Finished preprocessing dataset and saved dataset folder at {path_to_save_dataset}')
     
 
 
-
-
-        
 
 def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500, device='cpu'):
     """

@@ -5,7 +5,7 @@ user: 'Noga'
 experiment_name: 'Classifier_train'
 
 # ClearML configs
-clearml: True
+clearml: False
 
 # Trainer configs
 train_prec: 80
@@ -19,5 +19,5 @@ early_stopping_patience: 10
 output_model_path: 'model.pth'
 
 # Dataset configs
-sample_length: 10 
-overlap: False
+sample_length: 30 
+overlap: 0
