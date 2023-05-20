@@ -1,11 +1,15 @@
 seed: 336018
 
 # Experiment configs
-user: 'Noga'
-experiment_name: 'Classifier_train'
+user: 'tcml'
+experiment_name: 'Classifier_train_try'
+debug: True
+debug_ratio: 0.01
+debug_epochs: 3
+bsqi_th: 0.8
 
 # ClearML configs
-clearml: False
+clearml: True
 
 # Trainer configs
 train_prec: 80
@@ -14,9 +18,10 @@ lr: 0.0001
 loss: 'binary_cross_entropy'
 optimizer: 'AdamW'
 lr_scheduler: 'ReduceLROnPlateau'
-epochs: 30
+epochs: 5
 early_stopping_patience: 10
 output_model_path: 'model.pth'
+classifier_th: 0.7
 
 # Dataset configs
 sample_length: 30 

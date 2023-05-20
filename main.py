@@ -11,7 +11,7 @@ from utils import *
 from trainer import Trainer
 from model import EcgResNet34
 from dataset import *
-from trasform import Normalize
+from transform import Normalize
 
 
 def main(config):
@@ -24,10 +24,11 @@ def main(config):
     elif config['user'] == 'Amitay':
         records_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset/files.nosync/'
         exp_base_dir = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/experiments/'
+        data_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset_processed.nosync/dataset_30_10_0/'
     elif config['user'] == 'tcml':
         exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_30_10_0/'
     
     exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
@@ -43,17 +44,18 @@ def main(config):
     record_names = get_record_names_from_folder(records_folder_path)
     train_records_names, validation_records_names, test_records_names = split_records_train_val_test(record_names, config['train_prec'])
 
-    # Datasets and Dataloaders 
-    train_dataset = AF_dataset(data_folder_path, train_records_names, transform = transforms.Compose([Normalize()]))
-    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, num_workers=4)
-    validation_dataset = AF_dataset(data_folder_path, validation_records_names, transform = transforms.Compose([Normalize()]))
-    validation_loader = DataLoader(validation_dataset, batch_size=config['batch_size'], shuffle=False, num_workers=4)
-    test_dataset = AF_dataset(data_folder_path, test_records_names, transform = transforms.Compose([Normalize()]))
-    test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False,  num_workers=4)
+    # Datasets and Dataloaders
+    num_workers = 4
+    train_dataset = AF_dataset(data_folder_path, exp_dir, clearml_task, train_records_names, transform = transforms.Compose([Normalize()]), config=config, d_type='Train')
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, num_workers=num_workers)
+    validation_dataset = AF_dataset(data_folder_path, exp_dir, clearml_task, validation_records_names, transform = transforms.Compose([Normalize()]), config=config, d_type='Validation')
+    validation_loader = DataLoader(validation_dataset, batch_size=config['batch_size'], shuffle=False, num_workers=num_workers)
+    test_dataset = AF_dataset(data_folder_path, exp_dir, clearml_task, test_records_names, transform = transforms.Compose([Normalize()]), config=config, d_type='Test')
+    test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False,  num_workers=num_workers)
 
     # Model and optimizers config
-    model = EcgResNet34(num_classes=1)
-    if config['user'] == 'Noga':
+    model = EcgResNet34(num_classes=1, layers=(1, 2, 2, 2))
+    if config['user'] == 'Noga' or config['user'] == 'tcml':
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -69,9 +71,11 @@ def main(config):
     
     # Training
     trainer = Trainer(model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task)
+    print('Started training!')
     trainer.train()
-
-    #TODO: Add evaluation for the test set + Metrics
+    print('Finished training, Started test set evaluation!')
+    trainer.evaluate(data_type='test')
+    print('Finished experiment!')
 
 
 if __name__ == '__main__':

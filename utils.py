@@ -9,6 +9,7 @@ import yaml
 from torchsummary import summary
 from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
+from clearml import Logger
 
 
 def load_config(config_path):
@@ -30,7 +31,8 @@ def build_exp_dirs(exp_base_path, exp_name):
     # os.makedirs(os.path.join(exp_dir, "data"))
     os.makedirs(os.path.join(exp_dir, "models"))
     os.makedirs(os.path.join(exp_dir, "results"))
-    os.makedirs(os.path.join(exp_dir, "logs"))
+    # os.makedirs(os.path.join(exp_dir, "logs"))
+    os.makedirs(os.path.join(exp_dir, "dataframes"))
 
     return exp_dir
 
@@ -265,6 +267,38 @@ def humanize_number(number):
     formatted_number = '{:.2f}{}'.format(number, units[unit_index])
     return formatted_number
 
+
+def drop_unnamed_columns(df):
+    """
+    Drop columns starting with 'Unnamed' in a pandas DataFrame.
+    
+    Parameters:
+        df (pandas.DataFrame): Input DataFrame.
+        
+    Returns:
+        pandas.DataFrame: DataFrame with unnamed columns dropped.
+        
+    Raises:
+        AssertionError: If no columns starting with 'Unnamed' are found.
+    """
+    
+    columns = df.columns
+    unnamed_columns = [col for col in columns if col.startswith('Unnamed')]
+    if len(unnamed_columns) > 0:
+        df = df.drop(unnamed_columns, axis=1)
+
+    return df    
+
+
+def report_df_to_clearml(df, clearml_task, d_type=None):
+    logger = clearml_task.get_logger()
+    df.index.name = "id"
+    logger.report_table(
+        f"{d_type}_data_table", 
+        "Final data files", 
+        iteration=0, 
+        table_plot=df
+    )
 
 
 

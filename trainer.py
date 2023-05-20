@@ -23,6 +23,8 @@ class Trainer:
         self.device = device
         self.config = config
         self.scheduler = scheduler
+        self.class_labels = ['Normal', 'AF']
+        self.results_dir = os.path.join(exp_dir, 'results')
         
         if self.config['debug']:
             self.epochs = self.config['debug_epochs']
@@ -38,6 +40,21 @@ class Trainer:
         model_path = os.path.join(self.exp_dir, 'models', model_name)
         torch.save(self.model.state_dict(), model_path)
         print(f"Saved model from Epoch: {epoch}' at {model_path}")
+
+    def load_model(self, ckpt=0):
+        model_dir = os.path.join(self.exp_dir, 'models')
+        if ckpt:
+            assert os.path.isfile(ckpt), f"Checkpoint '{ckpt}' not found."
+            model_path = ckpt
+        else:
+            model_files = [f for f in os.listdir(model_dir) if f.endswith('model.pth')]
+            if not model_files:
+                raise FileNotFoundError("No model files found in the specified directory.")
+            latest_model_file = max(model_files, key=lambda f: os.path.getctime(os.path.join(model_dir, f)))
+            model_path = os.path.join(model_dir, latest_model_file)
+
+        self.model.load_state_dict(torch.load(model_path))
+        print(f'Loaded model weights from {model_path}')
 
 
     def train(self):
@@ -63,8 +80,13 @@ class Trainer:
                 self.optimizer.step()
 
             train_loss = total_train_loss / num_train_examples
-            val_loss = self.evaluate('validation')
+            val_loss = self.evaluate('validation', epoch)
 
+            # Print epoch results
+            print(f'Train Epoch: {epoch}'
+                f'\tAverage Train Loss: {train_loss:.4f}'
+                f'\tAverage Validation Loss: {val_loss:.4f}')
+            
             # ClearML logging
             if self.config['clearml']:
                 self.logger.report_scalar(title="Epoch Loss", series="Training Loss", value=train_loss, iteration=epoch)
@@ -82,18 +104,22 @@ class Trainer:
                 # self.logger.report_text("Early stopping criterion met. Training stopped.")
                 print(f"Early stopping criterion met at Epoch {epoch}. Training stopped.")
                 break
+
         
         # TODO: Make sure this happens for early stopping aswell
         self.save_model(epoch=epoch)
 
 
 
-    def evaluate(self, data_type):
+    def evaluate(self, data_type, epoch=0, ckpt=None):
         if data_type == 'validation':
             loader = self.validation_loader
         elif data_type == 'test':
             loader = self.test_loader
+            self.load_model(ckpt)
         
+        results_dir = os.path.join(self.exp_dir, 'results')
+
         self.model.eval()
         total_eval_loss = 0.0
         num_examples = 0
@@ -113,11 +139,11 @@ class Trainer:
                 num_examples += inputs.size(0)
 
                 # Threshold the predictions
-                thresholded_predictions = np.where(predictions >= self.config['classifier_th'], 1, 0)        
+                thresholded_predictions = np.where(outputs.cpu().numpy() >= self.config['classifier_th'], 1, 0)        
 
                 # Convert tensors to numpy arrays
                 true_labels.extend(targets.cpu().numpy())
-                predicted_labels.extend(thresholded_predictions.cpu().numpy())
+                predicted_labels.extend(thresholded_predictions)
                 predicted_probas.extend(outputs.cpu().numpy())
 
         # Calculate Loss
@@ -127,18 +153,19 @@ class Trainer:
         true_labels = np.array(true_labels)
         predicted_labels = np.array(predicted_labels)
         predicted_probas = np.array(predicted_probas)
-        
+
         # Calculate metrics
-        accuracy, confusion_mat, f1_score, precision, recall, probas = Metrics.calculate_metrics(true_labels, predicted_labels, class_labels)
+        accuracy, confusion_mat, f1_score, precision, recall = Metrics.calculate_metrics(data_type, epoch, true_labels, predicted_labels, self.class_labels, self.config['clearml'], results_dir)
 
-        # Plot and log confusion matrix
-        Metrics.plot_and_log_confusion_matrix(confusion_mat, class_labels, self.logger)
+        if data_type == 'test':
+            # Plot and log confusion matrix
+            Metrics.plot_and_log_confusion_matrix(confusion_mat, self.class_labels, self.logger, self.config['clearml'], results_dir)
 
-        # Plot ROC curve and log it to ClearML
-        Metrics.plot_roc_curve(true_labels, probas, self.logger)
+            # Plot ROC curve and log it to ClearML
+            Metrics.plot_roc_curve(true_labels, predicted_probas, self.logger, self.config['clearml'], results_dir)
 
         # return eval_loss, accuracy, f1_score, precision, recall, probas
-        return eval_loss, accuracy, f1_score, precision, recall, probas
+        return eval_loss
         
         # # Calculate metrics
         # predictions = np.array(predictions)
