@@ -2,8 +2,8 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'Classifier_train_try'
-debug: True
+experiment_name: 'Classifier_full_exp'
+debug: False
 debug_ratio: 0.01
 debug_epochs: 3
 bsqi_th: 0.8
@@ -18,7 +18,7 @@ lr: 0.0001
 loss: 'binary_cross_entropy'
 optimizer: 'AdamW'
 lr_scheduler: 'ReduceLROnPlateau'
-epochs: 5
+epochs: 30
 early_stopping_patience: 10
 output_model_path: 'model.pth'
 classifier_th: 0.7
