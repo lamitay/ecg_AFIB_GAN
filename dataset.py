@@ -36,7 +36,7 @@ class AF_dataset(Dataset):
                 filter_series = pd.Series(meta_data['bsqi_scores'] > data_quality_thr)
                 self.X = self.X[filter_series]
                 self.y = self.y[filter_series]
-                self.meta_data = meta_data[filter_series]
+                self.meta_data = meta_data[filter_series] #TODO: Fix
                 print(f'Using bsqi scores to filter {d_type} dataset with threshold of {data_quality_thr}')
                 # print(f"Number of samples that has been filtered are {(meta_data['bsqi_scores'] < data_quality_thr).sum()}") 
                 print(f"bsqi filtered {d_type} from {pre_bsqi_size} to {self.X.shape[0]}") 
