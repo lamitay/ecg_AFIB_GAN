@@ -11,6 +11,8 @@ from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
 from clearml import Logger
 import matplotlib.pyplot as plt
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
 
 def load_config(config_path):
     assert os.path.exists(config_path), f"Invalid config path: {config_path}"
@@ -332,13 +334,13 @@ def report_df_to_clearml(df, clearml_task, d_type=None):
 
 
 if __name__ == '__main__':
-    folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
+    folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
     record_names = []
     for file in os.listdir(folder_path):
         if file.endswith('.hea'):  # we find only the .hea files.
             record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
 
-    create_dataset(folder_path, record_names[:3], '/tcmldrive/NogaK/ECG_classification/data', 30, 0, 5, calc_bsqi = True)
+    create_dataset(folder_path, record_names, 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse', 30, 0, 5, calc_bsqi = True)
     ## TESTS :
     # test1 verify that no mixed labels intervals are being created:
     x = torch.rand(100000)

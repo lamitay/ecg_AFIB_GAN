@@ -20,7 +20,7 @@ def main(config):
     if config['user'] == 'Noga':
         records_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
         exp_base_dir = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/exp/'
-        data_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_30_10_0/'
+        data_folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
     elif config['user'] == 'Amitay':
         records_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset/files.nosync/'
         exp_base_dir = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/experiments/'
@@ -46,12 +46,41 @@ def main(config):
 
     # Datasets and Dataloaders
     num_workers = 4
-    train_dataset = AF_dataset(data_folder_path, exp_dir, clearml_task, train_records_names, transform = transforms.Compose([Normalize()]), config=config, d_type='Train')
-    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, num_workers=num_workers)
-    validation_dataset = AF_dataset(data_folder_path, exp_dir, clearml_task, validation_records_names, transform = transforms.Compose([Normalize()]), config=config, d_type='Validation')
-    validation_loader = DataLoader(validation_dataset, batch_size=config['batch_size'], shuffle=False, num_workers=num_workers)
-    test_dataset = AF_dataset(data_folder_path, exp_dir, clearml_task, test_records_names, transform = transforms.Compose([Normalize()]), config=config, d_type='Test')
-    test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False,  num_workers=num_workers)
+    train_dataset = AF_dataset(dataset_folder_path= data_folder_path, 
+                               exp_dir= exp_dir, 
+                               clearml_task= clearml_task,
+                               record_names= train_records_names, 
+                               transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
+                               config=config, 
+                               d_type='Train')
+    train_loader = DataLoader(train_dataset, 
+                              batch_size=config['batch_size'], 
+                              shuffle=True, 
+                              num_workers=num_workers)
+    
+    validation_dataset = AF_dataset(dataset_folder_path= data_folder_path, 
+                                    exp_dir= exp_dir, 
+                                    clearml_task= clearml_task, 
+                                    record_names= validation_records_names, 
+                                    transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
+                                    config=config, 
+                                    d_type='Validation')
+    validation_loader = DataLoader(validation_dataset, 
+                                   batch_size=config['batch_size'], 
+                                   shuffle=False, 
+                                   num_workers=num_workers)
+    
+    test_dataset = AF_dataset(dataset_folder_path= data_folder_path, 
+                              exp_dir= exp_dir, 
+                              clearml_task= clearml_task, 
+                              record_names= test_records_names, 
+                              transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
+                              config=config, 
+                              d_type='Test')
+    test_loader = DataLoader(test_dataset, 
+                             batch_size=config['batch_size'], 
+                             shuffle=False,  
+                             num_workers=num_workers)
 
     # Model and optimizers config
     model = EcgResNet34(num_classes=1, layers=(1, 2, 2, 2))

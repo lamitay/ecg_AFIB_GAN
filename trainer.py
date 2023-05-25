@@ -65,7 +65,7 @@ class Trainer:
             self.model.train()
             total_train_loss = 0.0
             num_train_examples = 0  
-            for inputs, targets in tqdm(self.train_loader):
+            for (inputs, targets), meta_data in tqdm(self.train_loader):
                 inputs = inputs.to(self.device).unsqueeze(1)
                 targets = targets.to(self.device).float()
 
