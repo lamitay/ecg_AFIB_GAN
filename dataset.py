@@ -54,10 +54,11 @@ class AF_dataset(Dataset):
         signal = np.load(os.path.join(self.folder_path,'intervals',signal_path))
         label = self.meta_data.iloc[index]['label']
         meta_data = self.meta_data.iloc[index]    
+        signal = signal.reshape((1, len(signal)))
         if self.transform:
             signal = self.transform(signal)
 
-        return (signal, label), meta_data
+            return (signal, label), meta_data.to_dict()
 
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
