@@ -25,7 +25,7 @@ class Trainer:
         self.scheduler = scheduler
         self.class_labels = ['Normal', 'AF']
         self.results_dir = os.path.join(exp_dir, 'results')
-        
+        self.logger = None
         if self.config['debug']:
             self.epochs = self.config['debug_epochs']
         else:
@@ -65,8 +65,8 @@ class Trainer:
             self.model.train()
             total_train_loss = 0.0
             num_train_examples = 0  
-            for inputs, targets in tqdm(self.train_loader):
-                inputs = inputs.to(self.device).unsqueeze(1)
+            for (inputs, targets), meta_data in tqdm(self.train_loader):
+                inputs = inputs.to(self.device).squeeze(1)
                 targets = targets.to(self.device).float()
 
                 self.optimizer.zero_grad()
@@ -128,11 +128,11 @@ class Trainer:
         predicted_probas = []
 
         with torch.no_grad():
-            for inputs, targets in tqdm(loader):
-                inputs = inputs.to(self.device).unsqueeze(1)
+            for (inputs, targets), meta_data in tqdm(loader):
+                inputs = inputs.to(self.device).squeeze(1)
                 targets = targets.to(self.device).float()
 
-                outputs = self.model(inputs)
+                outputs = self.model(inputs).squeeze(1)
                 loss = self.criterion(outputs, targets)
 
                 total_eval_loss += loss.item() * inputs.size(0)

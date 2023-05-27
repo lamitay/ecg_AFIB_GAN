@@ -13,7 +13,7 @@ clearml: True
 
 # Trainer configs
 train_prec: 80
-batch_size: 8
+batch_size: 32
 lr: 0.0001
 loss: 'binary_cross_entropy'
 optimizer: 'AdamW'

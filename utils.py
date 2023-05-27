@@ -10,6 +10,8 @@ from torchsummary import summary
 from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
 from clearml import Logger
+import matplotlib.pyplot as plt
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
 def load_config(config_path):
@@ -62,7 +64,7 @@ def split_records_train_val_test(record_names, train_prec=80):
     return train_records_names, val_records_names, test_records_names
 
 
-def split_records_to_intervals(record, annotation, qrs, sample_length, channel, overlap):
+def split_records_to_intervals(record, annotation, qrs, sample_length, channel, overlap, calc_bsqi):
     """split each of the records to intervals and the annotation to a binary 1D vector 
 
     Args:
@@ -92,10 +94,10 @@ def split_records_to_intervals(record, annotation, qrs, sample_length, channel, 
 
     num_of_samples_in_interval = fs*sample_length
     if overlap == False: # split the record without overlap
-        intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval, 0, fs)
+        intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval, 0, fs, calc_bsqi=calc_bsqi)
     else:
         overlap_in_samples = overlap*fs
-        intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval,  overlap_in_samples, fs)
+        intervals, labels, meta_data['num_of_bit'], meta_data['bsqi_scores'] = segment_and_label(signal, annots_signal, qrs.sample, num_of_samples_in_interval,  overlap_in_samples, fs, calc_bsqi=calc_bsqi)
     return intervals, labels, meta_data
 
 def segment_and_label(x, y, qrs, m, w, fs, calc_bsqi=False):
@@ -168,7 +170,40 @@ def create_dfs(segments, labels, meta_data):
     meta_data_df = pd.DataFrame(meta_data)
     return raw_data_df, labels_df, meta_data_df
 
-def create_dataset(folder_path, records_names, path_to_save_dataset, sample_length, channel, overlap):
+def save_intervals_from_record(dataset_path, intervals, annots, meta_data, fs):
+    record_file_name = meta_data['record_file_name']
+    dfs = []
+    for i in range(intervals.shape[0]):
+        interval = intervals[i,:]
+        label = annots[i]
+        bsqi_score = meta_data['bsqi_scores'][i]
+        file_name = f'{record_file_name[:-4]}_recordID_{i}_label_{label}_bsqi_{bsqi_score}.npy'
+
+        # Save interval to npy file
+        np.save(os.path.join(dataset_path, 'intervals', file_name), interval.numpy())
+
+        # Save interval plot :
+        t = np.arange(0, len(interval)/fs, 1/fs)
+        plt.figure()
+        plt.plot(t , interval)
+        plt.xlabel('time[sec]')
+        plt.title(f'Label = {label}')
+        plt.savefig(os.path.join(dataset_path,'images', file_name[:-4]+'.png'))
+        plt.close()
+        
+        interval_meta_data = {'record_file_name' : record_file_name,
+                              'interval_path' : os.path.join(dataset_path, file_name),
+                              'image_path' : os.path.join(dataset_path, file_name[:-4]+'.png'),
+                              'num_of_bits' : meta_data['num_of_bit'][i].item(),
+                              'bsqi_score' : bsqi_score.item(),
+                              'label' : label.item()}
+        
+        dfs.append(pd.Series(interval_meta_data))
+    record_meta_data = pd.concat(dfs,axis=1).T
+    return record_meta_data
+
+        
+def create_dataset(folder_path, records_names, path_to_save_dataset, sample_length, channel, overlap, calc_bsqi = False):
     """create dataset folder from original 10 hours records
 
     Args:
@@ -183,8 +218,8 @@ def create_dataset(folder_path, records_names, path_to_save_dataset, sample_leng
     # Check if dataset already exist:
     assert not os.path.exists(path_to_save_dataset), 'Dataset folder already exist, please remove exist folder'
     os.mkdir(path_to_save_dataset)
-    data_dfs = []
-    labels_dfs = []
+    os.mkdir(os.path.join(path_to_save_dataset, 'intervals'))
+    os.mkdir(os.path.join(path_to_save_dataset, 'images'))
     meta_data_dfs = []
     for name in records_names:
         file_name = os.path.join(folder_path, name)
@@ -196,19 +231,15 @@ def create_dataset(folder_path, records_names, path_to_save_dataset, sample_leng
                                                                   qrs,
                                                                   sample_length = sample_length, #in seconds!
                                                                   channel = channel, # lead
-                                                                  overlap = overlap)
-        #convert to dataframes:
-        raw_data_df, labels_df, meta_data_df = create_dfs(intervals.to(torch.float16), annots, meta_data)
-        data_dfs.append(raw_data_df)
-        labels_dfs.append(labels_df)
-        meta_data_dfs.append(meta_data_df)
-    
-    # Concat dataframes fom all records and save in the dataset folder
-    pd.concat(data_dfs, ignore_index=True).to_hdf(os.path.join(path_to_save_dataset, 'data.h5'), key='df', mode='w')
-    pd.concat(labels_dfs, ignore_index=True).to_csv(os.path.join(path_to_save_dataset, 'labels.csv'))
+                                                                  overlap = overlap, 
+                                                                  calc_bsqi = calc_bsqi)
+        
+        record_meta_data = save_intervals_from_record(path_to_save_dataset, intervals, annots, meta_data, record.fs)
+        meta_data_dfs.append(record_meta_data)
+        print(f'Finish saving intervals of record {name}')
+    # Save meta_data dataframe to csv file    
     pd.concat(meta_data_dfs, ignore_index=True).to_csv(os.path.join(path_to_save_dataset, 'meta_data.csv'))
-    print(f'Finished preprocessing dataset and saved dataset folder at {path_to_save_dataset}')
-    
+
 
 
 
@@ -303,14 +334,13 @@ def report_df_to_clearml(df, clearml_task, d_type=None):
 
 
 if __name__ == '__main__':
-    folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-    name = '04015'
-    file_name = os.path.join(folder_path, name)
-    record = wfdb.rdrecord(file_name)
-    annotation = wfdb.rdann(file_name, 'atr')
-    qrs = wfdb.rdann(file_name, 'qrs')
-    intervals, final_annots, meta_data = split_records_to_intervals(record, annotation, qrs, sample_length = 10, channel = 0, overlap = 3)
-    create_dataset(intervals, final_annots, meta_data, 'path_to_save')
+    folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
+    record_names = []
+    for file in os.listdir(folder_path):
+        if file.endswith('.hea'):  # we find only the .hea files.
+            record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
+
+    create_dataset(folder_path, record_names, 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse', 30, 0, 5, calc_bsqi = True)
     ## TESTS :
     # test1 verify that no mixed labels intervals are being created:
     x = torch.rand(100000)
