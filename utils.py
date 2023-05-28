@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import numpy as np
 from pecg import Preprocessing as Pre
+from pecg.ecg import FiducialPoints as Fp
 from wfdb import processing
 import yaml
 from torchsummary import summary
@@ -11,6 +12,7 @@ from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
 from clearml import Logger
 import matplotlib.pyplot as plt
+
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
@@ -157,10 +159,13 @@ def find_number_of_bits(i, j, qrs):
     return end_index - start_index
 
 def bsqi(signal , fs):
-    xqrs_inds = processing.xqrs_detect(signal, fs, verbose=False)
-    gqrs_inds = processing.gqrs_detect(signal, fs)
-    pre_pecg = Pre.Preprocessing(signal, fs)
-    bsqi = pre_pecg.bsqi(xqrs_inds, gqrs_inds)   
+    # First filter the signal using bandpass filter:
+    pre = Pre.Preprocessing(signal, fs)
+    filtered_signal = pre.bpfilt()
+    fp = Fp.FiducialPoints(filtered_signal, fs)
+    xqrs_inds = fp.xqrs()
+    jqrs_inds = fp.jqrs()
+    bsqi = pre.bsqi(xqrs_inds, jqrs_inds)   
     return bsqi
 
 def create_dfs(segments, labels, meta_data):
