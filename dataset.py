@@ -46,6 +46,7 @@ class AF_dataset(Dataset):
             if clearml_task:
                 report_df_to_clearml(self.meta_data, clearml_task, d_type)
             print('--------------------------------------------------------------')
+            
     def __len__(self):
         return len(self.meta_data)
     
@@ -59,6 +60,7 @@ class AF_dataset(Dataset):
             signal = self.transform(signal)
 
             return (signal, label), meta_data.to_dict()
+
 
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
