@@ -1,80 +1,93 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from clearml import Task, Logger
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, classification_report, roc_curve, auc, precision_score, recall_score, f1_score
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, classification_report, roc_curve, auc, precision_score, recall_score, f1_score, roc_auc_score, average_precision_score, precision_recall_curve, PrecisionRecallDisplay, RocCurveDisplay
 import os
 import seaborn as sns
+import pandas as pd
 
 
 class Metrics:
     @staticmethod
-    def calculate_metrics(d_type, epoch, true_labels, predicted_labels, class_labels, clearml=False, results_dir=None):
+    def calculate_metrics(d_type, epoch, true_labels, predicted_labels, probas, clearml=False, results_dir=None):
         # Calculate metrics
         accuracy = np.mean(true_labels == predicted_labels)
         confusion_mat = confusion_matrix(true_labels, predicted_labels)
         precision = precision_score(true_labels, predicted_labels, average='weighted')
         recall = recall_score(true_labels, predicted_labels, average='weighted')
         f1 = f1_score(true_labels, predicted_labels, average='weighted')
+        auroc = roc_auc_score(true_labels, probas)
+        avg_prec = average_precision_score(true_labels, probas)
 
-
-        # Log metrics to ClearML
-        for label in class_labels:
-            Metrics.log_metric(d_type, epoch, label, 'Accuracy', accuracy, clearml, results_dir)
-            Metrics.log_metric(d_type, epoch, label, 'F1 Score', f1, clearml, results_dir)
-            Metrics.log_metric(d_type, epoch, label, 'Precision', precision, clearml, results_dir)
-            Metrics.log_metric(d_type, epoch, label, 'Recall', recall, clearml, results_dir)
+        # Log metrics 
+        Metrics.log_metric(d_type, epoch, 'Accuracy', accuracy, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'F1 Score', f1, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'Precision', precision, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'Recall', recall, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'AUROC', auroc, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'Average Precision', avg_prec, clearml, results_dir)
         
-        return accuracy, confusion_mat, f1, precision, recall
+        if d_type == 'test':
+            # Create metrics table
+            metrics_table = pd.DataFrame([
+                ['Accuracy', accuracy],
+                ['F1 Score', f1],
+                ['Precision', precision],
+                ['Recall', recall],
+                ['AUROC', auroc],
+                ['Average Precision', avg_prec]
+                ], 
+                columns=['Metric', 'Value'])
+            Metrics.log_test_results(metrics_table, clearml, results_dir)
+
+        return accuracy, confusion_mat, f1, precision, recall, auroc, avg_prec
 
     @staticmethod
-    def log_metric(d_type, epoch, class_label, metric_name, metric_value, log_to_clearml=False, results_dir=None):
-        metric_name = f'{d_type}_{class_label}_{metric_name}'
-        # print(f'{metric_name}: {metric_value}')
-        
-        # Log metric to file
-        if d_type=='test':
-            with open(os.path.join(results_dir, 'metrics_results.txt'), 'a') as file:
-                file.write(f'{metric_name}: {metric_value}\n')
+    def log_test_results(metrics_table, log_to_clearml=False, results_dir=None):
+        # Print and save metrics table
+        print('Test set results:')
+        print(metrics_table)
 
+        with open(os.path.join(results_dir, 'metrics_results.txt'), 'a') as file:
+            file.write(str(metrics_table) + '\n')
+
+        if log_to_clearml:
+            Logger.current_logger().report_table("Test set results", "Metrics", iteration=0, table_plot=metrics_table)
+
+    @staticmethod
+    def log_metric(d_type, epoch, metric_name, metric_value, log_to_clearml=False, results_dir=None):
+        metric_name = f'{d_type}_{metric_name}'
         if log_to_clearml:
             Logger.current_logger().report_scalar(title=metric_name, series=metric_name, value=metric_value, iteration=epoch)
 
     @staticmethod
     def plot_and_log_confusion_matrix(confusion_mat, class_labels, task, log_to_clearml=False, results_dir=None):
         # Plot the confusion matrix
-        fig, ax = plt.subplots(figsize=(8, 6))
-        # disp = ConfusionMatrixDisplay(confusion_mat, display_labels=class_labels)
-        # disp.plot()
+        plt.figure(figsize=(8, 6))        
+        
         # Plot the confusion matrix using seaborn
-        svm=sns.heatmap(confusion_mat, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
+        svm=sns.heatmap(confusion_mat, annot=True, fmt='d', cmap='Blues', cbar=False)
 
         # Add title and labels
-        ax.set_title('Confusion Matrix')
-        ax.set_xlabel('Predicted')
-        ax.set_ylabel('True')
-        
-        # # Show the plot
-        # plt.show()
-        
-        # # Log confusion matrix to ClearML
-        # if log_to_clearml:
-        #     Logger.current_logger().report_matrix(
-        #         title='Confusion Matrix',
-        #         series='Confusion Matrix',
-        #         matrix=confusion_mat,
-        #         xaxis='Predicted',
-        #         yaxis='True'
-        #     )
+        plt.title('Confusion Matrix')
+        plt.xlabel('Predicted')
+        plt.ylabel('True')
 
         # Save confusion matrix as PNG
         confusion_matrix_file = os.path.join(results_dir, 'confusion_matrix.png')
-        
-            
-        figure = svm.get_figure()    
-        figure.savefig(confusion_matrix_file, dpi=400)
-        # plt.savefig(confusion_matrix_file)
-        # plt.close()
+        plt.savefig(confusion_matrix_file, dpi=400)
 
+        # Show the plot
+        plt.show()
+
+        # Close the plot
+        plt.close()
+
+        # # Save confusion matrix as PNG
+        # confusion_matrix_file = os.path.join(results_dir, 'confusion_matrix.png')
+           
+        # # figure = svm.get_figure()    
+        # figure.savefig(confusion_matrix_file, dpi=400)
 
     @staticmethod
     def plot_roc_curve(true_labels, probas, task, log_to_clearml=False, results_dir=None):
@@ -84,23 +97,32 @@ class Metrics:
         # Calculate area under the ROC curve
         roc_auc = auc(fpr, tpr)
 
-        # Plot ROC curve
-        plt.figure()
-        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
-        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver Operating Characteristic')
-        plt.legend(loc="lower right")
+        # # Plot ROC curve
+        # plt.figure()
+        # plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
+        # plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        # plt.xlim([0.0, 1.0])
+        # plt.ylim([0.0, 1.05])
+        # plt.xlabel('False Positive Rate')
+        # plt.ylabel('True Positive Rate')
+        # plt.title('Receiver Operating Characteristic')
+        # plt.legend(loc="lower right")
+        
+        # Create the ROC curve display
+        roc_display = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc)
+
+        # Plot the ROC curve
+        roc_display.plot()
+
+        # Set the plot title
+        plt.title('Receiver Operating Characteristic (AUC = {:.2f})'.format(roc_auc))
+
+        # Save ROC curve as PNG
+        roc_curve_file = os.path.join(results_dir, 'roc_curve.png')
+        plt.savefig(roc_curve_file, dpi=400)
 
         # Show the plot
         plt.show()
-        
-        # Save ROC curve as PNG
-        roc_curve_file = os.path.join(results_dir, 'roc_curve.png')
-        plt.savefig(roc_curve_file)
 
         # # Log ROC curve to ClearML
         # if log_to_clearml:
@@ -108,4 +130,45 @@ class Metrics:
 
         plt.close()
 
+    @staticmethod
+    def plot_pr_curve(true_labels, probas, task, log_to_clearml=False, results_dir=None):
+        precision, recall, _ = precision_recall_curve(true_labels, probas)
+        auprc = average_precision_score(true_labels, probas)
+
+        # plt.figure()
+        # plt.step(recall, precision, color='b', alpha=0.2, where='post')
+        # plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
+        # plt.xlabel('Recall')
+        # plt.ylabel('Precision')
+        # plt.ylim([0.0, 1.05])
+        # plt.xlim([0.0, 1.0])
+        # plt.title('Precision-Recall Curve (AUPRC = {:.2f})'.format(auprc))
+        # plt.legend(loc="lower right")
+
+        # # Save PR curve as PNG
+        # pr_curve_file = os.path.join(results_dir, 'pr_curve.png')
+        # plt.savefig(pr_curve_file, dpi=400)
         
+        # Create the Precision-Recall display
+        pr_display = PrecisionRecallDisplay(precision=precision, recall=recall, average_precision=auprc)
+
+        # Plot the Precision-Recall curve
+        pr_display.plot()
+
+        # Set the plot title
+        plt.title('Precision-Recall Curve (AUPRC = {:.2f})'.format(auprc))
+
+        # Save PR curve as PNG
+        pr_curve_file = os.path.join(results_dir, 'pr_curve.png')
+        plt.savefig(pr_curve_file, dpi=400)
+
+
+        # Show the plot
+        plt.show()
+
+        # # Log PR curve to ClearML
+        # if log_to_clearml:
+        #     Logger.current_logger().report_image(title='PR Curve', series='PR Curve', image=plt)
+
+        plt.close()
+

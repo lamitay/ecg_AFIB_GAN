@@ -95,6 +95,8 @@ class Trainer:
             if val_loss < best_loss:
                 best_loss = val_loss
                 epochs_without_improvement = 0
+                self.save_model(epoch=epoch)
+
             else:
                 epochs_without_improvement += 1
 
@@ -106,7 +108,7 @@ class Trainer:
                 break
 
         
-        # TODO: Make sure this happens for early stopping aswell
+        # TODO: Make sure this happens for early stopping as well
         self.save_model(epoch=epoch)
 
 
@@ -155,7 +157,7 @@ class Trainer:
         predicted_probas = np.array(predicted_probas)
 
         # Calculate metrics
-        accuracy, confusion_mat, f1_score, precision, recall = Metrics.calculate_metrics(data_type, epoch, true_labels, predicted_labels, self.class_labels, self.config['clearml'], results_dir)
+        accuracy, confusion_mat, f1_score, precision, recall, auroc, avg_prec = Metrics.calculate_metrics(data_type, epoch, true_labels, predicted_labels, predicted_probas, self.config['clearml'], results_dir)
 
         if data_type == 'test':
             # Plot and log confusion matrix
@@ -164,21 +166,7 @@ class Trainer:
             # Plot ROC curve and log it to ClearML
             Metrics.plot_roc_curve(true_labels, predicted_probas, self.logger, self.config['clearml'], results_dir)
 
-        # return eval_loss, accuracy, f1_score, precision, recall, probas
+            # Plot PR curve and log it to ClearML
+            Metrics.plot_pr_curve(true_labels, predicted_probas, self.logger, self.config['clearml'], results_dir)
+
         return eval_loss
-        
-        # # Calculate metrics
-        # predictions = np.array(predictions)
-        # np_labels = np.array(np_labels)
-        # accuracy = accuracy_score(np_labels, thresholded_predictions)
-        # precision = precision_score(np_labels, thresholded_predictions)
-        # recall = recall_score(np_labels, thresholded_predictions)
-        # f1 = f1_score(np_labels, thresholded_predictions)
-
-        # # Log metrics (you can modify this part based on your logging preference)
-        # print(f'{data_type.capitalize()} Loss: {eval_loss:.4f}')
-        # print(f'{data_type.capitalize()} Accuracy: {accuracy:.4f}')
-        # print(f'{data_type.capitalize()} Precision: {precision:.4f}')
-        # print(f'{data_type.capitalize()} Recall: {recall:.4f}')
-        # print(f'{data_type.capitalize()} F1-Score: {f1:.4f}')
-

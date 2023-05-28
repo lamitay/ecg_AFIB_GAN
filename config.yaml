@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'Classifier_full_exp'
+experiment_name: 'metrics_debug'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
