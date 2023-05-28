@@ -83,12 +83,6 @@ class Metrics:
         # Close the plot
         plt.close()
 
-        # # Save confusion matrix as PNG
-        # confusion_matrix_file = os.path.join(results_dir, 'confusion_matrix.png')
-           
-        # # figure = svm.get_figure()    
-        # figure.savefig(confusion_matrix_file, dpi=400)
-
     @staticmethod
     def plot_roc_curve(true_labels, probas, task, log_to_clearml=False, results_dir=None):
         # Calculate false positive rate, true positive rate, and thresholds
@@ -96,17 +90,6 @@ class Metrics:
 
         # Calculate area under the ROC curve
         roc_auc = auc(fpr, tpr)
-
-        # # Plot ROC curve
-        # plt.figure()
-        # plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
-        # plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        # plt.xlim([0.0, 1.0])
-        # plt.ylim([0.0, 1.05])
-        # plt.xlabel('False Positive Rate')
-        # plt.ylabel('True Positive Rate')
-        # plt.title('Receiver Operating Characteristic')
-        # plt.legend(loc="lower right")
         
         # Create the ROC curve display
         roc_display = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc)
@@ -123,31 +106,14 @@ class Metrics:
 
         # Show the plot
         plt.show()
-
-        # # Log ROC curve to ClearML
-        # if log_to_clearml:
-        #     Logger.current_logger().report_image(title='ROC Curve', series='ROC Curve', image=plt)
-
+        
+        # Close the plot
         plt.close()
 
     @staticmethod
     def plot_pr_curve(true_labels, probas, task, log_to_clearml=False, results_dir=None):
         precision, recall, _ = precision_recall_curve(true_labels, probas)
         auprc = average_precision_score(true_labels, probas)
-
-        # plt.figure()
-        # plt.step(recall, precision, color='b', alpha=0.2, where='post')
-        # plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
-        # plt.xlabel('Recall')
-        # plt.ylabel('Precision')
-        # plt.ylim([0.0, 1.05])
-        # plt.xlim([0.0, 1.0])
-        # plt.title('Precision-Recall Curve (AUPRC = {:.2f})'.format(auprc))
-        # plt.legend(loc="lower right")
-
-        # # Save PR curve as PNG
-        # pr_curve_file = os.path.join(results_dir, 'pr_curve.png')
-        # plt.savefig(pr_curve_file, dpi=400)
         
         # Create the Precision-Recall display
         pr_display = PrecisionRecallDisplay(precision=precision, recall=recall, average_precision=auprc)
@@ -162,13 +128,8 @@ class Metrics:
         pr_curve_file = os.path.join(results_dir, 'pr_curve.png')
         plt.savefig(pr_curve_file, dpi=400)
 
-
         # Show the plot
         plt.show()
-
-        # # Log PR curve to ClearML
-        # if log_to_clearml:
-        #     Logger.current_logger().report_image(title='PR Curve', series='PR Curve', image=plt)
-
+        
+        # Close the plot
         plt.close()
-
