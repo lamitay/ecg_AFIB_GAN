@@ -20,7 +20,7 @@ class AF_dataset(Dataset):
         # Load meta data csv file from dataset folder:
         meta_data = pd.read_csv(os.path.join(dataset_folder_path,'meta_data.csv')) 
         meta_data = drop_unnamed_columns(meta_data)
-        meta_data['record_file_name'] = meta_data['record_file_name'].str[:-4]#remove ".dat" from the record names
+        record_names = [int(name) for name in record_names]
         self.meta_data = meta_data[meta_data['record_file_name'].isin(record_names)]
         print('--------------------------------------------------------------')
         print(f'created {d_type} dataset with {len(self.meta_data)} intervals')
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         if file.endswith('.hea'):  # we find only the .hea files.
             record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
     config = load_config('config.yaml')
-    ds = AF_dataset(folder_path, record_names[0:10], config=config)
+    ds = AF_dataset(folder_path, record_names, config=config)
     dataset_meta_data = ds.meta_data
     fs = 250
     for i, idx in enumerate(np.random.randint(0, len(ds) , 6)):
