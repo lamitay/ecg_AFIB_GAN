@@ -46,6 +46,7 @@ class AF_dataset(Dataset):
             if clearml_task:
                 report_df_to_clearml(self.meta_data, clearml_task, d_type)
             print('--------------------------------------------------------------')
+
     def __len__(self):
         return len(self.meta_data)
     
@@ -58,7 +59,7 @@ class AF_dataset(Dataset):
         if self.transform:
             signal = self.transform(signal)
 
-            return (signal, label), meta_data.to_dict()
+        return (signal, label), meta_data.to_dict()
 
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
@@ -73,8 +74,8 @@ if __name__ == '__main__':
     for i, idx in enumerate(np.random.randint(0, len(ds) , 6)):
         (signal, label), meta_data = ds[idx]
         plt.subplot(3, 2, i + 1)
-        t = np.arange(0, len(signal)/fs, 1/fs)
-        plt.plot(t , signal)
+        t = np.arange(0, signal.shape[-1]/fs, 1/fs)
+        plt.plot(t , signal.T)
         # plt.xlabel('time[sec]')
         plt.title(f'Label = {label}')
 
