@@ -108,4 +108,48 @@ class Metrics:
 
         plt.close()
 
+    @staticmethod
+    def save_mistakes_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
+        # Add mistakes folder in the results_dir:
+        os.mkdir(os.path.join(results_dir, 'mistakes'))
+        # Add to neta data the predicted labels
+        meta_data['prediction'] = predicted_labels
+        mistakes = true_labels != predicted_labels
+        mistakes_meta_data = meta_data.iloc[mistakes]
+        if len(mistakes_meta_data) > 100: # save plots of maximum 100 mistakes
+            mistakes_meta_data = mistakes_meta_data[:100]
+        for idx, mistake in mistakes_meta_data.iterrows():
+            signal = np.load(os.path.join(dataset_path, 'intervals', mistake['interval_path']))
+            # Save interval plot :
+            t = np.arange(0, len(signal)/250, 1/250)
+            plt.figure()
+            plt.plot(t , signal)
+            plt.xlabel('time[sec]')
+            plt.title(f"True Label = {mistake['label']}, Predicted Label = {mistake['prediction']}")
+            plt.savefig(os.path.join(results_dir,'mistakes',mistake['image_path'][:-4]+f"_pred_{mistake['prediction']}.png"))
+            plt.close()
+
+
+    @staticmethod
+    def save_correct_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
+        # Add mistakes folder in the results_dir:
+        os.mkdir(os.path.join(results_dir, 'corrects'))
+        # Add to neta data the predicted labels
+        meta_data['prediction'] = predicted_labels
+        correct = true_labels == predicted_labels
+        correct_meta_data = meta_data.iloc[correct]
+        if len(correct_meta_data) > 15: # save plots of maximum 15 correct
+            correct_meta_data = correct_meta_data[:15]
+        for idx, correct in correct_meta_data.iterrows():
+            signal = np.load(os.path.join(dataset_path, 'intervals', correct['interval_path']))
+            # Save interval plot :
+            t = np.arange(0, len(signal)/250, 1/250)
+            plt.figure()
+            plt.plot(t , signal)
+            plt.xlabel('time[sec]')
+            plt.title(f"True Label = {correct['label']}, Predicted Label = {correct['prediction']}")
+            plt.savefig(os.path.join(results_dir,'corrects',correct['image_path'][:-4]+f"_pred_{correct['prediction']}.png"))
+            plt.close()
+
+
         

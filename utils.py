@@ -268,7 +268,7 @@ def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500, devic
         >>> print_model_summary(model, batch_size, num_ch, samp_per_record)
         Output: Prints the model summary, parameter count, and total number of FLOPs.
     """
-    summary(model, input_size=(num_ch, samp_per_record))
+    summary(model.to(device), input_size=(num_ch, samp_per_record), device=device)
     # Create a sample input tensor
     input_size = (batch_size, num_ch, samp_per_record)
     rand_inputs = torch.randn(*input_size).to(device)

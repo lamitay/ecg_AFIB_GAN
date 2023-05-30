@@ -88,18 +88,18 @@ def main(config):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    
+    print_model_summary(model, config['batch_size'], device='cpu')
     model.to(device)
-    print_model_summary(model, config['batch_size'], device=device)
-
     if config['optimizer'] == 'AdamW':
         optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
-    if config['loss'] == 'binary_cross_entropy':
+    if config['loss'] == 'binary_cross_entropy':    
         criterion = F.binary_cross_entropy
     if config['lr_scheduler'] == 'ReduceLROnPlateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, verbose=True)
     
     # Training
-    trainer = Trainer(model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task)
+    trainer = Trainer(model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task, data_folder_path)
     print('Started training!')
     trainer.train()
     print('Finished training, Started test set evaluation!')
