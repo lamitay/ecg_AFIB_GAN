@@ -6,7 +6,7 @@ experiment_name: 'Classifier_check_mistake_images_saving'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
-bsqi_th: 0.8
+bsqi_th: 0.925
 
 # ClearML configs
 clearml: True
