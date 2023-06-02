@@ -2,11 +2,11 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'metrics_debug'
-debug: False
+experiment_name: 'debug_merges'
+debug: True
 debug_ratio: 0.01
 debug_epochs: 3
-bsqi_th: 0.8
+bsqi_th: 0.925
 
 # ClearML configs
 clearml: True

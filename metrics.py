@@ -5,7 +5,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, classifica
 import os
 import seaborn as sns
 import pandas as pd
-
+import random
 
 class Metrics:
     @staticmethod
@@ -133,3 +133,62 @@ class Metrics:
         
         # Close the plot
         plt.close()
+
+
+    @staticmethod
+    def save_mistakes_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
+        # Add mistakes folder in the results_dir:
+        os.mkdir(os.path.join(results_dir, 'mistakes'))
+
+        # Add to meta data the predicted labels
+        meta_data['prediction'] = predicted_labels
+        # mistakes = true_labels != predicted_labels
+        # mistakes_meta_data = meta_data[mistakes]
+
+        # Filter FP and FN mistakes
+        fp_mistakes = meta_data[(true_labels == 0) & (predicted_labels == 1)]
+        fn_mistakes = meta_data[(true_labels == 1) & (predicted_labels == 0)]
+
+        # Randomly select mistakes to include
+        selected_mistakes = []
+        selected_mistakes.extend(random.sample(list(fp_mistakes.iterrows()), min(50, len(fp_mistakes))))
+        selected_mistakes.extend(random.sample(list(fn_mistakes.iterrows()), min(50, len(fn_mistakes))))
+
+        # Save plots of selected mistakes
+        for idx, mistake in selected_mistakes:
+            signal = np.load(os.path.join(dataset_path, 'intervals', mistake['interval_path']))
+            mistake_type = 'FP' if mistake['label'] == 0 else 'FN'
+            file_name = mistake['image_path'][:-4] + f"_pred_{mistake['prediction']}_{mistake_type}.png"
+            file_path = os.path.join(results_dir, 'mistakes', file_name)
+
+            # Plot and save interval
+            t = np.arange(0, len(signal) / 250, 1 / 250)
+            plt.figure()
+            plt.plot(t, signal)
+            plt.xlabel('time[sec]')
+            plt.title(f"True Label = {mistake['label']}, Predicted Label = {mistake['prediction']}")
+            plt.savefig(file_path)
+            plt.close()
+
+
+
+    @staticmethod
+    def save_correct_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
+        # Add mistakes folder in the results_dir:
+        os.mkdir(os.path.join(results_dir, 'corrects'))
+        # Add to neta data the predicted labels
+        meta_data['prediction'] = predicted_labels
+        correct = true_labels == predicted_labels
+        correct_meta_data = meta_data.iloc[correct]
+        if len(correct_meta_data) > 15: # save plots of maximum 15 correct
+            correct_meta_data = correct_meta_data[:15]
+        for idx, correct in correct_meta_data.iterrows():
+            signal = np.load(os.path.join(dataset_path, 'intervals', correct['interval_path']))
+            # Save interval plot :
+            t = np.arange(0, len(signal)/250, 1/250)
+            plt.figure()
+            plt.plot(t , signal)
+            plt.xlabel('time[sec]')
+            plt.title(f"True Label = {correct['label']}, Predicted Label = {correct['prediction']}")
+            plt.savefig(os.path.join(results_dir,'corrects',correct['image_path'][:-4]+f"_pred_{correct['prediction']}.png"))
+            plt.close()

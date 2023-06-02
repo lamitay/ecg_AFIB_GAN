@@ -10,9 +10,10 @@ import os
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import numpy as np
 from metrics import Metrics
+import pandas as pd
 
 class Trainer:
-    def __init__(self, model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task):
+    def __init__(self, model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task, dataset_path):
         self.model = model
         self.exp_dir = exp_dir
         self.train_loader = train_loader
@@ -26,6 +27,7 @@ class Trainer:
         self.class_labels = ['Normal', 'AF']
         self.results_dir = os.path.join(exp_dir, 'results')
         self.logger = None
+        self.dataset_path = dataset_path
         if self.config['debug']:
             self.epochs = self.config['debug_epochs']
         else:
@@ -128,6 +130,7 @@ class Trainer:
         true_labels = []
         predicted_labels = []
         predicted_probas = []
+        meta_data_list = []
 
         with torch.no_grad():
             for (inputs, targets), meta_data in tqdm(loader):
@@ -147,6 +150,7 @@ class Trainer:
                 true_labels.extend(targets.cpu().numpy())
                 predicted_labels.extend(thresholded_predictions)
                 predicted_probas.extend(outputs.cpu().numpy())
+                meta_data_list.append(pd.DataFrame(meta_data))
 
         # Calculate Loss
         eval_loss = total_eval_loss / num_examples
@@ -155,7 +159,7 @@ class Trainer:
         true_labels = np.array(true_labels)
         predicted_labels = np.array(predicted_labels)
         predicted_probas = np.array(predicted_probas)
-
+        meta_data_df = pd.concat(meta_data_list, axis=0, ignore_index=True)
         # Calculate metrics
         accuracy, confusion_mat, f1_score, precision, recall, auroc, avg_prec = Metrics.calculate_metrics(data_type, epoch, true_labels, predicted_labels, predicted_probas, self.config['clearml'], results_dir)
 
@@ -168,5 +172,15 @@ class Trainer:
 
             # Plot PR curve and log it to ClearML
             Metrics.plot_pr_curve(true_labels, predicted_probas, self.logger, self.config['clearml'], results_dir)
+            
+            print('Started saving mistake images')
+            # Save up to 100 images of the network mistakes
+            Metrics.save_mistakes_images(true_labels, predicted_labels, meta_data_df, self.dataset_path, results_dir)
+            print('Finished saving mistake images')
+            
+            print('Started saving correct images')
+            # Save 15 images of the networks correct predictions
+            Metrics.save_correct_images(true_labels, predicted_labels, meta_data_df, self.dataset_path, results_dir)
+            print('Finished saving correct images')
 
         return eval_loss

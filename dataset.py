@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from utils import *
+import random
+
 
 class AF_dataset(Dataset):
     def __init__(self, dataset_folder_path, record_names, clearml_task = False,exp_dir = None, transform = False, config=None, d_type='No data type specified'):
@@ -20,7 +22,7 @@ class AF_dataset(Dataset):
         # Load meta data csv file from dataset folder:
         meta_data = pd.read_csv(os.path.join(dataset_folder_path,'meta_data.csv')) 
         meta_data = drop_unnamed_columns(meta_data)
-        meta_data['record_file_name'] = meta_data['record_file_name'].str[:-4]#remove ".dat" from the record names
+        record_names = [int(name) for name in record_names]
         self.meta_data = meta_data[meta_data['record_file_name'].isin(record_names)]
         print('--------------------------------------------------------------')
         print(f'created {d_type} dataset with {len(self.meta_data)} intervals')
@@ -36,17 +38,18 @@ class AF_dataset(Dataset):
                 print(f"bsqi filtered {d_type} from {pre_bsqi_size} to {len(self.meta_data)}") 
                 assert len(self.meta_data) > 0 ,'The bsqi filtering filtered all the samples, please choose a lower threshold and run again'
 
+
             if config['debug']:
                 orig_size = len(self.meta_data)
                 debug_size = int(config['debug_ratio'] * orig_size)
-                self.meta_data = self.meta_data[:debug_size]
-                print(f'debug mode, squeeze {d_type} data from {orig_size} to {debug_size}') 
+                self.meta_data = self.meta_data.sample(n=debug_size)
+                print(f'debug mode, squeeze {d_type} data from {orig_size} to {debug_size}')
             if exp_dir:
                 self.meta_data.to_csv(os.path.join(exp_dir,'dataframes', d_type+'_df.csv'), index=False)
             if clearml_task:
                 report_df_to_clearml(self.meta_data, clearml_task, d_type)
             print('--------------------------------------------------------------')
-            
+
     def __len__(self):
         return len(self.meta_data)
     
@@ -59,8 +62,7 @@ class AF_dataset(Dataset):
         if self.transform:
             signal = self.transform(signal)
 
-            return (signal, label), meta_data.to_dict()
-
+        return (signal, label), meta_data.to_dict()
 
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
@@ -69,14 +71,14 @@ if __name__ == '__main__':
         if file.endswith('.hea'):  # we find only the .hea files.
             record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
     config = load_config('config.yaml')
-    ds = AF_dataset(folder_path, record_names[0:10], config=config)
+    ds = AF_dataset(folder_path, record_names, config=config)
     dataset_meta_data = ds.meta_data
     fs = 250
     for i, idx in enumerate(np.random.randint(0, len(ds) , 6)):
         (signal, label), meta_data = ds[idx]
         plt.subplot(3, 2, i + 1)
-        t = np.arange(0, len(signal)/fs, 1/fs)
-        plt.plot(t , signal)
+        t = np.arange(0, signal.shape[-1]/fs, 1/fs)
+        plt.plot(t , signal.T)
         # plt.xlabel('time[sec]')
         plt.title(f'Label = {label}')
 

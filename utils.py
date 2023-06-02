@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import numpy as np
 from pecg import Preprocessing as Pre
+from pecg.ecg import FiducialPoints as Fp
 from wfdb import processing
 import yaml
 from torchsummary import summary
@@ -11,6 +12,7 @@ from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
 from clearml import Logger
 import matplotlib.pyplot as plt
+
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
@@ -124,7 +126,7 @@ def segment_and_label(x, y, qrs, m, w, fs, calc_bsqi=False):
     segments = torch.zeros(num_segments, m)  # initialize segments tensor
     labels = torch.zeros(num_segments, dtype=torch.int64)  # initialize labels tensor
     num_of_bits = torch.zeros(num_segments, dtype=torch.int64)
-    bsqi_scores = torch.zeros(num_segments, dtype=torch.int64)
+    bsqi_scores = torch.zeros(num_segments, dtype=torch.float64)
     for i in range(num_segments):
         start = i * (m - w)
         end = start + m
@@ -157,10 +159,13 @@ def find_number_of_bits(i, j, qrs):
     return end_index - start_index
 
 def bsqi(signal , fs):
-    xqrs_inds = processing.xqrs_detect(signal, fs, verbose=False)
-    gqrs_inds = processing.gqrs_detect(signal, fs)
-    pre_pecg = Pre.Preprocessing(signal, fs)
-    bsqi = pre_pecg.bsqi(xqrs_inds, gqrs_inds)   
+    # First filter the signal using bandpass filter:
+    pre = Pre.Preprocessing(signal, fs)
+    filtered_signal = pre.bpfilt()
+    fp = Fp.FiducialPoints(filtered_signal, fs)
+    xqrs_inds = fp.xqrs()
+    jqrs_inds = fp.jqrs()
+    bsqi = pre.bsqi(xqrs_inds, jqrs_inds)   
     return bsqi
 
 def create_dfs(segments, labels, meta_data):
@@ -177,7 +182,7 @@ def save_intervals_from_record(dataset_path, intervals, annots, meta_data, fs):
         interval = intervals[i,:]
         label = annots[i]
         bsqi_score = meta_data['bsqi_scores'][i]
-        file_name = f'{record_file_name[:-4]}_recordID_{i}_label_{label}_bsqi_{bsqi_score}.npy'
+        file_name = f'{record_file_name[:-4]}_recordID_{i}_label_{label}_bsqi_{bsqi_score:.3f}.npy'
 
         # Save interval to npy file
         np.save(os.path.join(dataset_path, 'intervals', file_name), interval.numpy())
@@ -192,8 +197,8 @@ def save_intervals_from_record(dataset_path, intervals, annots, meta_data, fs):
         plt.close()
         
         interval_meta_data = {'record_file_name' : record_file_name,
-                              'interval_path' : os.path.join(dataset_path, file_name),
-                              'image_path' : os.path.join(dataset_path, file_name[:-4]+'.png'),
+                              'interval_path' : file_name,
+                              'image_path' : file_name[:-4]+'.png',
                               'num_of_bits' : meta_data['num_of_bit'][i].item(),
                               'bsqi_score' : bsqi_score.item(),
                               'label' : label.item()}
@@ -220,7 +225,7 @@ def create_dataset(folder_path, records_names, path_to_save_dataset, sample_leng
     os.mkdir(path_to_save_dataset)
     os.mkdir(os.path.join(path_to_save_dataset, 'intervals'))
     os.mkdir(os.path.join(path_to_save_dataset, 'images'))
-    meta_data_dfs = []
+    meta_data_dfs = [] 
     for name in records_names:
         file_name = os.path.join(folder_path, name)
         record = wfdb.rdrecord(file_name)
@@ -263,7 +268,7 @@ def print_model_summary(model, batch_size, num_ch=1, samp_per_record=2500, devic
         >>> print_model_summary(model, batch_size, num_ch, samp_per_record)
         Output: Prints the model summary, parameter count, and total number of FLOPs.
     """
-    summary(model, input_size=(num_ch, samp_per_record))
+    summary(model.to(device), input_size=(num_ch, samp_per_record), device=device)
     # Create a sample input tensor
     input_size = (batch_size, num_ch, samp_per_record)
     rand_inputs = torch.randn(*input_size).to(device)
