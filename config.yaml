@@ -2,8 +2,8 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'debug_merges'
-debug: True
+experiment_name: 'Final_Classifier_test'
+debug: False
 debug_ratio: 0.01
 debug_epochs: 3
 bsqi_th: 0.925
