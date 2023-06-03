@@ -27,6 +27,10 @@ class AF_dataset(Dataset):
         print('--------------------------------------------------------------')
         print(f'created {d_type} dataset with {len(self.meta_data)} intervals')
 
+        if GAN_label >= 0:
+            self.meta_data = self.meta_data[self.meta_data['label'] == GAN_label]
+            print(f'GAN {d_type} dataloader with labels {GAN_label} size is: {len(self.meta_data)}')
+
         if config is not None:
             # if data quality threshold is provided, remove signals that has a bsqi below threshold
             if isinstance(config['bsqi_th'], float):
@@ -49,10 +53,6 @@ class AF_dataset(Dataset):
             if clearml_task:
                 report_df_to_clearml(self.meta_data, clearml_task, d_type)
             print('--------------------------------------------------------------')
-
-        if GAN_label >= 0:
-            self.meta_data = self.meta_data[self.meta_data['label'] == GAN_label]
-            print(f'GAN {d_type} dataloader size is: {len(self.meta_data)}')
 
     def __len__(self):
         return len(self.meta_data)
