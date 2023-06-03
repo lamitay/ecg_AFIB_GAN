@@ -43,8 +43,8 @@ class GAN_Trainer:
         self.netG = generator.to(self.device)
         self.netD = discriminator.to(self.device)
         
-        self.optimizerD = Adam(self.netD.parameters(), lr=0.0002)
-        self.optimizerG = Adam(self.netG.parameters(), lr=0.0002)
+        self.optimizerD = Adam(self.netD.parameters(), lr=1e-5)
+        self.optimizerG = Adam(self.netG.parameters(), lr=1e-5)
         self.criterion = nn.BCELoss()
         
         self.batch_size = batch_size

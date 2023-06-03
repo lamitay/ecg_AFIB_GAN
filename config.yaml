@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'GAN_basic_attempt_3000_epochs'
+experiment_name: 'GAN_no_LSTM_lr_1e-5_5_layers_1000_epochs'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -30,6 +30,6 @@ fs: 250
 overlap: 0
 
 # GAN configs
-GAN_epochs: 3000
+GAN_epochs: 1000
 GAN_batch_size: 64
 GAN_label: 1
