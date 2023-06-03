@@ -14,7 +14,7 @@ import random
 
 
 class AF_dataset(Dataset):
-    def __init__(self, dataset_folder_path, record_names, clearml_task = False,exp_dir = None, transform = False, config=None, d_type='No data type specified'):
+    def __init__(self, dataset_folder_path, record_names, clearml_task = False,exp_dir = None, transform = False, config=None, d_type='No data type specified', GAN_label=-1):
         super().__init__()
 
         self.transform = transform
@@ -49,6 +49,10 @@ class AF_dataset(Dataset):
             if clearml_task:
                 report_df_to_clearml(self.meta_data, clearml_task, d_type)
             print('--------------------------------------------------------------')
+
+        if GAN_label >= 0:
+            self.meta_data = self.meta_data[self.meta_data['label'] == GAN_label]
+            print(f'GAN {d_type} dataloader size is: {len(self.meta_data)}')
 
     def __len__(self):
         return len(self.meta_data)

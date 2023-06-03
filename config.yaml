@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'Final_classifier_no_early_stop'
+experiment_name: 'GAN_basic_attempt_3000_epochs'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -25,5 +25,11 @@ output_model_path: 'model.pth'
 classifier_th: 0.75
 
 # Dataset configs
-sample_length: 30 
+sample_length: 30
+fs: 250
 overlap: 0
+
+# GAN configs
+GAN_epochs: 3000
+GAN_batch_size: 64
+GAN_label: 1

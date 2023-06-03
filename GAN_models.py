@@ -12,13 +12,13 @@ https://github.com/mandrakedrink/ECG-Synthesis-and-Classification/tree/main/ecg_
 """
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, signal_length=7500):
         super(Generator, self).__init__()
         self.fc1 = nn.Linear(256, 256)
         self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 7500)
+        self.fc3 = nn.Linear(256, signal_length)
         self.rnn_layer = nn.LSTM(
-                input_size=7500,
+                input_size=signal_length,
                 hidden_size=128,
                 num_layers=1,
                 bidirectional=True,
@@ -35,11 +35,11 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, signal_length=7500):
         super(Discriminator, self).__init__()
         
         self.rnn_layer = nn.LSTM(
-                input_size=7500,
+                input_size=signal_length,
                 hidden_size=256,
                 num_layers=1,
                 bidirectional=True,

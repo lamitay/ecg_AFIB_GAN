@@ -5,7 +5,7 @@ import torch
 class Config_git:
     csv_path = ''
     seed = 2021
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def seed_everything(seed: int):
     np.random.seed(seed)
