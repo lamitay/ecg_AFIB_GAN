@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'Final_Classifier_test'
+experiment_name: 'Final_classifier_no_early_stop'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -19,6 +19,7 @@ loss: 'binary_cross_entropy'
 optimizer: 'AdamW'
 lr_scheduler: 'ReduceLROnPlateau'
 epochs: 100
+early_stopping: False
 early_stopping_patience: 10
 output_model_path: 'model.pth'
 classifier_th: 0.75

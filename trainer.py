@@ -104,10 +104,11 @@ class Trainer:
 
             self.scheduler.step(val_loss)
 
-            if epochs_without_improvement >= self.config['early_stopping_patience']:
-                # self.logger.report_text("Early stopping criterion met. Training stopped.")
-                print(f"Early stopping criterion met at Epoch {epoch}. Training stopped.")
-                break
+            if self.config['early_stopping']:
+                if epochs_without_improvement >= self.config['early_stopping_patience']:
+                    # self.logger.report_text("Early stopping criterion met. Training stopped.")
+                    print(f"Early stopping criterion met at Epoch {epoch}. Training stopped.")
+                    break
 
         
         # TODO: Make sure this happens for early stopping as well

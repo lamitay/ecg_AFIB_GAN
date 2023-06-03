@@ -166,7 +166,8 @@ class Metrics:
             plt.figure()
             plt.plot(t, signal)
             plt.xlabel('time[sec]')
-            plt.title(f"True Label = {mistake['label']}, Predicted Label = {mistake['prediction']}")
+            # plt.title(f"True Label = {mistake['label']}, Predicted Label = {mistake['prediction']}")
+            plt.title(mistake_type + '_sample_' + mistake['image_path'][:-4] + f"_pred_{mistake['prediction']}")
             plt.savefig(file_path)
             plt.close()
 
@@ -176,7 +177,7 @@ class Metrics:
     def save_correct_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
         # Add mistakes folder in the results_dir:
         os.mkdir(os.path.join(results_dir, 'corrects'))
-        # Add to neta data the predicted labels
+        # Add to meta data the predicted labels
         meta_data['prediction'] = predicted_labels
         correct = true_labels == predicted_labels
         correct_meta_data = meta_data.iloc[correct]
@@ -184,11 +185,13 @@ class Metrics:
             correct_meta_data = correct_meta_data[:15]
         for idx, correct in correct_meta_data.iterrows():
             signal = np.load(os.path.join(dataset_path, 'intervals', correct['interval_path']))
+            correct_type = 'TP' if correct['label'] == 1 else 'TN'
             # Save interval plot :
             t = np.arange(0, len(signal)/250, 1/250)
             plt.figure()
             plt.plot(t , signal)
             plt.xlabel('time[sec]')
-            plt.title(f"True Label = {correct['label']}, Predicted Label = {correct['prediction']}")
-            plt.savefig(os.path.join(results_dir,'corrects',correct['image_path'][:-4]+f"_pred_{correct['prediction']}.png"))
+            # plt.title(f"True Label = {correct['label']}, Predicted Label = {correct['prediction']}")
+            plt.title(correct_type + '_sample_' + correct['image_path'][:-4] + f"_pred_{correct['prediction']}")
+            plt.savefig(os.path.join(results_dir,'corrects',correct['image_path'][:-4]+f"_pred_{correct['prediction']}_{correct_type}.png"))
             plt.close()
