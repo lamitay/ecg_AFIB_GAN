@@ -12,6 +12,7 @@ from trainer import Trainer
 from model import EcgResNet34
 from dataset import *
 from transform import Normalize
+import random
 
 
 def main(config):
@@ -39,6 +40,7 @@ def main(config):
         clearml_task=0
 
     torch.manual_seed(config['seed'])
+    random.seed(config['seed'])
 
     # Data
     record_names = get_record_names_from_folder(records_folder_path)

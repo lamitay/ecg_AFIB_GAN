@@ -1,80 +1,87 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from clearml import Task, Logger
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, classification_report, roc_curve, auc, precision_score, recall_score, f1_score
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, classification_report, roc_curve, auc, precision_score, recall_score, f1_score, roc_auc_score, average_precision_score, precision_recall_curve, PrecisionRecallDisplay, RocCurveDisplay
 import os
 import seaborn as sns
-
+import pandas as pd
+import random
 
 class Metrics:
     @staticmethod
-    def calculate_metrics(d_type, epoch, true_labels, predicted_labels, class_labels, clearml=False, results_dir=None):
+    def calculate_metrics(d_type, epoch, true_labels, predicted_labels, probas, clearml=False, results_dir=None):
         # Calculate metrics
         accuracy = np.mean(true_labels == predicted_labels)
         confusion_mat = confusion_matrix(true_labels, predicted_labels)
         precision = precision_score(true_labels, predicted_labels, average='weighted')
         recall = recall_score(true_labels, predicted_labels, average='weighted')
         f1 = f1_score(true_labels, predicted_labels, average='weighted')
+        auroc = roc_auc_score(true_labels, probas)
+        avg_prec = average_precision_score(true_labels, probas)
 
-
-        # Log metrics to ClearML
-        for label in class_labels:
-            Metrics.log_metric(d_type, epoch, label, 'Accuracy', accuracy, clearml, results_dir)
-            Metrics.log_metric(d_type, epoch, label, 'F1 Score', f1, clearml, results_dir)
-            Metrics.log_metric(d_type, epoch, label, 'Precision', precision, clearml, results_dir)
-            Metrics.log_metric(d_type, epoch, label, 'Recall', recall, clearml, results_dir)
+        # Log metrics 
+        Metrics.log_metric(d_type, epoch, 'Accuracy', accuracy, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'F1 Score', f1, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'Precision', precision, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'Recall', recall, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'AUROC', auroc, clearml, results_dir)
+        Metrics.log_metric(d_type, epoch, 'Average Precision', avg_prec, clearml, results_dir)
         
-        return accuracy, confusion_mat, f1, precision, recall
+        if d_type == 'test':
+            # Create metrics table
+            metrics_table = pd.DataFrame([
+                ['Accuracy', accuracy],
+                ['F1 Score', f1],
+                ['Precision', precision],
+                ['Recall', recall],
+                ['AUROC', auroc],
+                ['Average Precision', avg_prec]
+                ], 
+                columns=['Metric', 'Value'])
+            Metrics.log_test_results(metrics_table, clearml, results_dir)
+
+        return accuracy, confusion_mat, f1, precision, recall, auroc, avg_prec
 
     @staticmethod
-    def log_metric(d_type, epoch, class_label, metric_name, metric_value, log_to_clearml=False, results_dir=None):
-        metric_name = f'{d_type}_{class_label}_{metric_name}'
-        # print(f'{metric_name}: {metric_value}')
-        
-        # Log metric to file
-        if d_type=='test':
-            with open(os.path.join(results_dir, 'metrics_results.txt'), 'a') as file:
-                file.write(f'{metric_name}: {metric_value}\n')
+    def log_test_results(metrics_table, log_to_clearml=False, results_dir=None):
+        # Print and save metrics table
+        print('Test set results:')
+        print(metrics_table)
 
+        with open(os.path.join(results_dir, 'metrics_results.txt'), 'a') as file:
+            file.write(str(metrics_table) + '\n')
+
+        if log_to_clearml:
+            Logger.current_logger().report_table("Test set results", "Metrics", iteration=0, table_plot=metrics_table)
+
+    @staticmethod
+    def log_metric(d_type, epoch, metric_name, metric_value, log_to_clearml=False, results_dir=None):
+        metric_name = f'{d_type}_{metric_name}'
         if log_to_clearml:
             Logger.current_logger().report_scalar(title=metric_name, series=metric_name, value=metric_value, iteration=epoch)
 
     @staticmethod
     def plot_and_log_confusion_matrix(confusion_mat, class_labels, task, log_to_clearml=False, results_dir=None):
         # Plot the confusion matrix
-        fig, ax = plt.subplots(figsize=(8, 6))
-        # disp = ConfusionMatrixDisplay(confusion_mat, display_labels=class_labels)
-        # disp.plot()
+        plt.figure(figsize=(8, 6))        
+        
         # Plot the confusion matrix using seaborn
-        svm=sns.heatmap(confusion_mat, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
+        svm=sns.heatmap(confusion_mat, annot=True, fmt='d', cmap='Blues', cbar=False)
 
         # Add title and labels
-        ax.set_title('Confusion Matrix')
-        ax.set_xlabel('Predicted')
-        ax.set_ylabel('True')
-        
-        # # Show the plot
-        # plt.show()
-        
-        # # Log confusion matrix to ClearML
-        # if log_to_clearml:
-        #     Logger.current_logger().report_matrix(
-        #         title='Confusion Matrix',
-        #         series='Confusion Matrix',
-        #         matrix=confusion_mat,
-        #         xaxis='Predicted',
-        #         yaxis='True'
-        #     )
+        plt.title('Confusion Matrix')
+        plt.xlabel('Predicted')
+        plt.ylabel('True')
 
         # Save confusion matrix as PNG
         confusion_matrix_file = os.path.join(results_dir, 'confusion_matrix.png')
-        
-            
-        figure = svm.get_figure()    
-        figure.savefig(confusion_matrix_file, dpi=400)
-        # plt.savefig(confusion_matrix_file)
-        # plt.close()
+        plt.savefig(confusion_matrix_file, dpi=400)
 
+        # Show the plot
+        plt.show()
+
+        # Close the plot
+        plt.close()
 
     @staticmethod
     def plot_roc_curve(true_labels, probas, task, log_to_clearml=False, results_dir=None):
@@ -83,58 +90,93 @@ class Metrics:
 
         # Calculate area under the ROC curve
         roc_auc = auc(fpr, tpr)
+        
+        # Create the ROC curve display
+        roc_display = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc)
 
-        # Plot ROC curve
-        plt.figure()
-        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
-        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver Operating Characteristic')
-        plt.legend(loc="lower right")
+        # Plot the ROC curve
+        roc_display.plot()
+
+        # Set the plot title
+        plt.title('Receiver Operating Characteristic (AUC = {:.2f})'.format(roc_auc))
+
+        # Save ROC curve as PNG
+        roc_curve_file = os.path.join(results_dir, 'roc_curve.png')
+        plt.savefig(roc_curve_file, dpi=400)
 
         # Show the plot
         plt.show()
         
-        # Save ROC curve as PNG
-        roc_curve_file = os.path.join(results_dir, 'roc_curve.png')
-        plt.savefig(roc_curve_file)
+        # Close the plot
+        plt.close()
 
-        # # Log ROC curve to ClearML
-        # if log_to_clearml:
-        #     Logger.current_logger().report_image(title='ROC Curve', series='ROC Curve', image=plt)
+    @staticmethod
+    def plot_pr_curve(true_labels, probas, task, log_to_clearml=False, results_dir=None):
+        precision, recall, _ = precision_recall_curve(true_labels, probas)
+        auprc = average_precision_score(true_labels, probas)
+        
+        # Create the Precision-Recall display
+        pr_display = PrecisionRecallDisplay(precision=precision, recall=recall, average_precision=auprc)
 
+        # Plot the Precision-Recall curve
+        pr_display.plot()
+
+        # Set the plot title
+        plt.title('Precision-Recall Curve (AUPRC = {:.2f})'.format(auprc))
+
+        # Save PR curve as PNG
+        pr_curve_file = os.path.join(results_dir, 'pr_curve.png')
+        plt.savefig(pr_curve_file, dpi=400)
+
+        # Show the plot
+        plt.show()
+        
+        # Close the plot
         plt.close()
 
     @staticmethod
     def save_mistakes_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
         # Add mistakes folder in the results_dir:
         os.mkdir(os.path.join(results_dir, 'mistakes'))
-        # Add to neta data the predicted labels
+
+        # Add to meta data the predicted labels
         meta_data['prediction'] = predicted_labels
-        mistakes = true_labels != predicted_labels
-        mistakes_meta_data = meta_data.iloc[mistakes]
-        if len(mistakes_meta_data) > 100: # save plots of maximum 100 mistakes
-            mistakes_meta_data = mistakes_meta_data[:100]
-        for idx, mistake in mistakes_meta_data.iterrows():
+        # mistakes = true_labels != predicted_labels
+        # mistakes_meta_data = meta_data[mistakes]
+
+        # Filter FP and FN mistakes
+        fp_mistakes = meta_data[(true_labels == 0) & (predicted_labels == 1)]
+        fn_mistakes = meta_data[(true_labels == 1) & (predicted_labels == 0)]
+
+        # Randomly select mistakes to include
+        selected_mistakes = []
+        selected_mistakes.extend(random.sample(list(fp_mistakes.iterrows()), min(50, len(fp_mistakes))))
+        selected_mistakes.extend(random.sample(list(fn_mistakes.iterrows()), min(50, len(fn_mistakes))))
+
+        # Save plots of selected mistakes
+        for idx, mistake in selected_mistakes:
             signal = np.load(os.path.join(dataset_path, 'intervals', mistake['interval_path']))
-            # Save interval plot :
-            t = np.arange(0, len(signal)/250, 1/250)
+            mistake_type = 'FP' if mistake['label'] == 0 else 'FN'
+            file_name = mistake['image_path'][:-4] + f"_pred_{mistake['prediction']}_{mistake_type}.png"
+            file_path = os.path.join(results_dir, 'mistakes', file_name)
+
+            # Plot and save interval
+            t = np.arange(0, len(signal) / 250, 1 / 250)
             plt.figure()
-            plt.plot(t , signal)
+            plt.plot(t, signal)
             plt.xlabel('time[sec]')
-            plt.title(f"True Label = {mistake['label']}, Predicted Label = {mistake['prediction']}")
-            plt.savefig(os.path.join(results_dir,'mistakes',mistake['image_path'][:-4]+f"_pred_{mistake['prediction']}.png"))
+            # plt.title(f"True Label = {mistake['label']}, Predicted Label = {mistake['prediction']}")
+            plt.title(mistake_type + '_sample_' + mistake['image_path'][:-4] + f"_pred_{mistake['prediction']}")
+            plt.savefig(file_path)
             plt.close()
+
 
 
     @staticmethod
     def save_correct_images(true_labels, predicted_labels, meta_data, dataset_path, results_dir=None):
         # Add mistakes folder in the results_dir:
         os.mkdir(os.path.join(results_dir, 'corrects'))
-        # Add to neta data the predicted labels
+        # Add to meta data the predicted labels
         meta_data['prediction'] = predicted_labels
         correct = true_labels == predicted_labels
         correct_meta_data = meta_data.iloc[correct]
@@ -142,14 +184,13 @@ class Metrics:
             correct_meta_data = correct_meta_data[:15]
         for idx, correct in correct_meta_data.iterrows():
             signal = np.load(os.path.join(dataset_path, 'intervals', correct['interval_path']))
+            correct_type = 'TP' if correct['label'] == 1 else 'TN'
             # Save interval plot :
             t = np.arange(0, len(signal)/250, 1/250)
             plt.figure()
             plt.plot(t , signal)
             plt.xlabel('time[sec]')
-            plt.title(f"True Label = {correct['label']}, Predicted Label = {correct['prediction']}")
-            plt.savefig(os.path.join(results_dir,'corrects',correct['image_path'][:-4]+f"_pred_{correct['prediction']}.png"))
+            # plt.title(f"True Label = {correct['label']}, Predicted Label = {correct['prediction']}")
+            plt.title(correct_type + '_sample_' + correct['image_path'][:-4] + f"_pred_{correct['prediction']}")
+            plt.savefig(os.path.join(results_dir,'corrects',correct['image_path'][:-4]+f"_pred_{correct['prediction']}_{correct_type}.png"))
             plt.close()
-
-
-        

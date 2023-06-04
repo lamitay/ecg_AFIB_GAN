@@ -97,18 +97,21 @@ class Trainer:
             if val_loss < best_loss:
                 best_loss = val_loss
                 epochs_without_improvement = 0
+                self.save_model(epoch=epoch)
+
             else:
                 epochs_without_improvement += 1
 
             self.scheduler.step(val_loss)
 
-            if epochs_without_improvement >= self.config['early_stopping_patience']:
-                # self.logger.report_text("Early stopping criterion met. Training stopped.")
-                print(f"Early stopping criterion met at Epoch {epoch}. Training stopped.")
-                break
+            if self.config['early_stopping']:
+                if epochs_without_improvement >= self.config['early_stopping_patience']:
+                    # self.logger.report_text("Early stopping criterion met. Training stopped.")
+                    print(f"Early stopping criterion met at Epoch {epoch}. Training stopped.")
+                    break
 
         
-        # TODO: Make sure this happens for early stopping aswell
+        # TODO: Make sure this happens for early stopping as well
         self.save_model(epoch=epoch)
 
 
@@ -129,6 +132,8 @@ class Trainer:
         predicted_labels = []
         predicted_probas = []
         meta_data_list = []
+        meta_data_list = []
+
         with torch.no_grad():
             for (inputs, targets), meta_data in tqdm(loader):
                 inputs = inputs.to(self.device).squeeze(1)
@@ -158,7 +163,7 @@ class Trainer:
         predicted_probas = np.array(predicted_probas)
         meta_data_df = pd.concat(meta_data_list, axis=0, ignore_index=True)
         # Calculate metrics
-        accuracy, confusion_mat, f1_score, precision, recall = Metrics.calculate_metrics(data_type, epoch, true_labels, predicted_labels, self.class_labels, self.config['clearml'], results_dir)
+        accuracy, confusion_mat, f1_score, precision, recall, auroc, avg_prec = Metrics.calculate_metrics(data_type, epoch, true_labels, predicted_labels, predicted_probas, self.config['clearml'], results_dir)
 
         if data_type == 'test':
             # Plot and log confusion matrix
@@ -167,27 +172,17 @@ class Trainer:
             # Plot ROC curve and log it to ClearML
             Metrics.plot_roc_curve(true_labels, predicted_probas, self.logger, self.config['clearml'], results_dir)
 
-            # Save all images of the network mistakes :
-            Metrics.save_mistakes_images(true_labels, predicted_labels, meta_data_df, self.dataset_path, results_dir)
-
-            # Save 15 images of the network corrects predictions :
-            Metrics.save_correct_images(true_labels, predicted_labels, meta_data_df, self.dataset_path, results_dir)
+            # Plot PR curve and log it to ClearML
+            Metrics.plot_pr_curve(true_labels, predicted_probas, self.logger, self.config['clearml'], results_dir)
             
-        # return eval_loss, accuracy, f1_score, precision, recall, probas
+            print('Started saving mistake images')
+            # Save up to 100 images of the network mistakes
+            Metrics.save_mistakes_images(true_labels, predicted_labels, meta_data_df, self.dataset_path, results_dir)
+            print('Finished saving mistake images')
+            
+            print('Started saving correct images')
+            # Save 15 images of the networks correct predictions
+            Metrics.save_correct_images(true_labels, predicted_labels, meta_data_df, self.dataset_path, results_dir)
+            print('Finished saving correct images')
+
         return eval_loss
-        
-        # # Calculate metrics
-        # predictions = np.array(predictions)
-        # np_labels = np.array(np_labels)
-        # accuracy = accuracy_score(np_labels, thresholded_predictions)
-        # precision = precision_score(np_labels, thresholded_predictions)
-        # recall = recall_score(np_labels, thresholded_predictions)
-        # f1 = f1_score(np_labels, thresholded_predictions)
-
-        # # Log metrics (you can modify this part based on your logging preference)
-        # print(f'{data_type.capitalize()} Loss: {eval_loss:.4f}')
-        # print(f'{data_type.capitalize()} Accuracy: {accuracy:.4f}')
-        # print(f'{data_type.capitalize()} Precision: {precision:.4f}')
-        # print(f'{data_type.capitalize()} Recall: {recall:.4f}')
-        # print(f'{data_type.capitalize()} F1-Score: {f1:.4f}')
-

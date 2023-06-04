@@ -10,9 +10,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from utils import *
+import random
+
 
 class AF_dataset(Dataset):
-    def __init__(self, dataset_folder_path, record_names, clearml_task = False,exp_dir = None, transform = False, config=None, d_type='No data type specified'):
+    def __init__(self, dataset_folder_path, record_names, clearml_task = False,exp_dir = None, transform = False, config=None, d_type='No data type specified', GAN_label=-1):
         super().__init__()
 
         self.transform = transform
@@ -25,6 +27,10 @@ class AF_dataset(Dataset):
         print('--------------------------------------------------------------')
         print(f'created {d_type} dataset with {len(self.meta_data)} intervals')
 
+        if GAN_label >= 0:
+            self.meta_data = self.meta_data[self.meta_data['label'] == GAN_label]
+            print(f'GAN {d_type} dataloader with labels {GAN_label} size is: {len(self.meta_data)}')
+
         if config is not None:
             # if data quality threshold is provided, remove signals that has a bsqi below threshold
             if isinstance(config['bsqi_th'], float):
@@ -36,11 +42,12 @@ class AF_dataset(Dataset):
                 print(f"bsqi filtered {d_type} from {pre_bsqi_size} to {len(self.meta_data)}") 
                 assert len(self.meta_data) > 0 ,'The bsqi filtering filtered all the samples, please choose a lower threshold and run again'
 
+
             if config['debug']:
                 orig_size = len(self.meta_data)
                 debug_size = int(config['debug_ratio'] * orig_size)
-                self.meta_data = self.meta_data[:debug_size]
-                print(f'debug mode, squeeze {d_type} data from {orig_size} to {debug_size}') 
+                self.meta_data = self.meta_data.sample(n=debug_size)
+                print(f'debug mode, squeeze {d_type} data from {orig_size} to {debug_size}')
             if exp_dir:
                 self.meta_data.to_csv(os.path.join(exp_dir,'dataframes', d_type+'_df.csv'), index=False)
             if clearml_task:
