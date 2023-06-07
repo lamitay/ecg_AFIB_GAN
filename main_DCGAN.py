@@ -96,8 +96,8 @@ def main(config):
     
     signal_length = config['sample_length'] * config['fs']
 
-    g = Generator(signal_length=signal_length)
-    d = Discriminator(signal_length=signal_length)
+    g = DCGenerator(signal_length=signal_length, noise_length = config['noise_size'])
+    d = DCDiscriminator(signal_length=signal_length)
 
     GAN_trainer = GAN_Trainer(
         generator=g,

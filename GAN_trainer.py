@@ -28,7 +28,7 @@ class GAN_Trainer:
         batch_size,
         num_epochs,
         data_loader,
-        signal_length,
+        noise_length,
         device,
         label,
         clearml,
@@ -48,11 +48,11 @@ class GAN_Trainer:
         self.criterion = nn.BCELoss()
         
         self.batch_size = batch_size
-        self.signal_dim = [self.batch_size, 1, signal_length]
+        self.signal_dim = [self.batch_size, 1, noise_length]
         self.num_epochs = num_epochs
         self.dataloader = data_loader
         
-        self.fixed_noise = torch.randn(self.batch_size, 1, signal_length, device=self.device)
+        self.fixed_noise = torch.randn(self.batch_size, 1, noise_length, device=self.device)
         self.g_errors = []
         self.d_errors = []
         
@@ -80,7 +80,7 @@ class GAN_Trainer:
        
             errD_real = self.criterion(output, label)
             errD_real.backward()
-            D_x = output.mean().item()
+            D_real = output.mean().item()
             
             ## train with fake data
             noise = torch.randn(self.signal_dim, device=self.device)
@@ -104,14 +104,14 @@ class GAN_Trainer:
             
             errG = self.criterion(output, label)
             errG.backward()
-            D_G_z2 = output.mean().item()
+            D_fake = output.mean().item()
             self.optimizerG.step()
             
-        return errD.item(), errG.item()
+        return errD.item(), errG.item(), D_fake, D_real
         
     def run(self):
         for epoch in tqdm(range(self.num_epochs)):
-            errD_, errG_ = self._one_epoch()
+            errD_, errG_, D_fake_, D_real_ = self._one_epoch()
             self.d_errors.append(errD_)
             self.g_errors.append(errG_)
             
@@ -119,10 +119,11 @@ class GAN_Trainer:
             if self.clearml:
                 Logger.current_logger().report_scalar(title="Epoch Loss", series="Generator Loss", value=errG_, iteration=epoch)
                 Logger.current_logger().report_scalar(title="Epoch Loss", series="Discriminator Loss", value=errD_, iteration=epoch)
-            
+                Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Real", value=D_real_, iteration=epoch)
+                Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Fake", value=D_fake_, iteration=epoch)
+           
             if epoch % 100 == 0:
-                print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Time: {time.strftime('%H:%M:%S')}")
-                
+                print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
                 fake = self.netG(self.fixed_noise)
                 
                 plt.figure()
@@ -138,6 +139,20 @@ class GAN_Trainer:
         disc_path = os.path.join(self.exp_dir, 'models', disc_name)
         torch.save(self.netG.state_dict(), gen_path)
         torch.save(self.netD.state_dict(), disc_path)
+
+        # Save loss curves
+        self.save_loss_curves()
+
+    def save_loss_curves(self):
+        plt.figure()
+        plt.plot(self.d_errors)
+        plt.plot(self.g_errors)
+        plt.title('Loss Curve')
+        plt.savefig(os.path.join(self.results_dir,'loss_curve.png'))
+        plt.xlabel('# Epoch')
+        plt.close()
+
+        
 
 
 if __name__ == '__main__':
