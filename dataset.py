@@ -22,7 +22,7 @@ class AF_dataset(Dataset):
         # Load meta data csv file from dataset folder:
         meta_data = pd.read_csv(os.path.join(dataset_folder_path,'meta_data.csv')) 
         meta_data = drop_unnamed_columns(meta_data)
-        record_names = [int(name) for name in record_names]
+        record_names = [name+'.dat' for name in record_names]
         self.meta_data = meta_data[meta_data['record_file_name'].isin(record_names)]
         print('--------------------------------------------------------------')
         print(f'created {d_type} dataset with {len(self.meta_data)} intervals')

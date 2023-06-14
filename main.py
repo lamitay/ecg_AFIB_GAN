@@ -29,7 +29,7 @@ def main(config):
     elif config['user'] == 'tcml':
         exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len30_overlab5_chan0/'
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
     exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
@@ -85,7 +85,7 @@ def main(config):
                              num_workers=num_workers)
 
     # Model and optimizers config
-    model = EcgResNet34(num_classes=1, layers=(1, 2, 2, 2))
+    model = EcgResNet34(num_classes=1, layers=(1, 1, 1, 1))
     if config['user'] == 'Noga' or config['user'] == 'tcml':
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
