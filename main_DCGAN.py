@@ -31,7 +31,7 @@ def main(config):
     elif config['user'] == 'tcml':
         exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len30_overlab5_chan0/'
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
     exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
@@ -96,9 +96,10 @@ def main(config):
     
     signal_length = config['sample_length'] * config['fs']
 
-    g = DCGenerator(signal_length=signal_length, noise_length = config['noise_size'])
-    d = DCDiscriminator(signal_length=signal_length)
-
+    # g = DCGenerator(signal_length=signal_length, noise_length = config['noise_size'])
+    # d = DCDiscriminator(signal_length=signal_length)
+    g = DCGenerator(nz = config['noise_size'])
+    d = DCDiscriminator()
     GAN_trainer = GAN_Trainer(
         generator=g,
         discriminator=d,
@@ -108,6 +109,8 @@ def main(config):
         noise_length=config['noise_size'],
         device=device,
         label=config['GAN_label'],
+        discriminator_lr = config['discriminator_lr'],
+        generator_lr = config['generator_lr'],
         clearml=config['clearml'],
         exp_dir=exp_dir
     )

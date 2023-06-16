@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'classifier_with_6_seconds_signals_smaller_arch'
+experiment_name: 'DCGAN_new_archs_noise_size_100_lr_1e-5_add_noise_to_real_data'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -12,7 +12,7 @@ bsqi_th: 0.925
 clearml: True
 
 # Trainer configs
-train_prec: 85
+train_prec: 60
 batch_size: 256
 lr: 0.00001
 loss: 'binary_cross_entropy'
@@ -25,12 +25,14 @@ output_model_path: 'model.pth'
 classifier_th: 0.75
 
 # Dataset configs
-sample_length: 30
+sample_length: 6
 fs: 250
 overlap: 0
 
 # GAN configs
-GAN_epochs: 1000
-GAN_batch_size: 64
+GAN_epochs: 500
+GAN_batch_size: 256
 GAN_label: 1
-noise_size : 1000
+noise_size : 100
+discriminator_lr : 0.00001
+generator_lr : 0.00001

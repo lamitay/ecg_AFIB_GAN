@@ -31,8 +31,11 @@ class GAN_Trainer:
         noise_length,
         device,
         label,
+        discriminator_lr,
+        generator_lr,
         clearml,
-        exp_dir
+        exp_dir,
+        noise_std = 0.1
     ):
         
         self.clearml = clearml
@@ -43,14 +46,15 @@ class GAN_Trainer:
         self.netG = generator.to(self.device)
         self.netD = discriminator.to(self.device)
         
-        self.optimizerD = Adam(self.netD.parameters(), lr=1e-5)
-        self.optimizerG = Adam(self.netG.parameters(), lr=1e-5)
+        self.optimizerD = Adam(self.netD.parameters(), lr=discriminator_lr)
+        self.optimizerG = Adam(self.netG.parameters(), lr=generator_lr)
         self.criterion = nn.BCELoss()
         
         self.batch_size = batch_size
         self.signal_dim = [self.batch_size, 1, noise_length]
         self.num_epochs = num_epochs
         self.dataloader = data_loader
+        self.noise_std = noise_std
         
         self.fixed_noise = torch.randn(self.batch_size, 1, noise_length, device=self.device)
         self.g_errors = []
@@ -68,6 +72,11 @@ class GAN_Trainer:
             ## train with real data
             self.netD.zero_grad()
             real_data = inputs
+            
+            if self.noise_std != 0:
+                # Add the noise to the real data
+                real_data += torch.randn_like(real_data) * self.noise_std 
+
             # dim for noise
             batch_size = real_data.size(0)
             self.signal_dim[0] = batch_size
@@ -123,6 +132,9 @@ class GAN_Trainer:
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Fake", value=D_fake_, iteration=epoch)
            
             if epoch % 100 == 0:
+
+                self.noise_std = self.noise_std*0.1 # reduce the variance of the noise that being added to the real data
+
                 print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
                 fake = self.netG(self.fixed_noise)
                 
