@@ -1,0 +1,38 @@
+seed: 336018
+
+# Experiment configs
+user: 'tcml'
+experiment_name: 'DCGAN_new_archs_noise_size_100_declr_5e-5_genlr_1e-5_add_noise_to_real_data_std_0.1'
+debug: False
+debug_ratio: 0.01
+debug_epochs: 3
+bsqi_th: 0.925
+
+# ClearML configs
+clearml: False
+
+# Trainer configs
+train_prec: 60
+batch_size: 256
+lr: 0.00001
+loss: 'binary_cross_entropy'
+optimizer: 'AdamW'
+lr_scheduler: 'ReduceLROnPlateau'
+epochs: 50
+early_stopping: True
+early_stopping_patience: 10
+output_model_path: 'model.pth'
+classifier_th: 0.75
+
+# Dataset configs
+sample_length: 6
+fs: 250
+overlap: 0
+
+# GAN configs
+GAN_epochs: 500
+GAN_batch_size: 256
+GAN_label: 1
+noise_size : 100
+discriminator_lr : 0.00005
+generator_lr : 0.00001
