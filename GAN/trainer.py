@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW, Adam
+from torch.optim import AdamW, Adam, SGD
 from clearml import Logger
 
 from GAN.models import Generator, Discriminator
@@ -46,7 +46,7 @@ class GAN_Trainer:
         self.netG = generator.to(self.device)
         self.netD = discriminator.to(self.device)
         
-        self.optimizerD = Adam(self.netD.parameters(), lr=discriminator_lr)
+        self.optimizerD = SGD(self.netD.parameters(), lr=discriminator_lr)
         self.optimizerG = Adam(self.netG.parameters(), lr=generator_lr)
         self.criterion = nn.BCELoss()
         
@@ -64,6 +64,10 @@ class GAN_Trainer:
         real_label = 1
         fake_label = 0
         
+        err_Ds = []
+        err_Gs = []
+        out_real = []
+        out_fake = [] 
         # for i, data in enumerate(self.dataloader, 0):
         for (inputs, _), meta_data in self.dataloader:
             inputs = inputs.to(self.device).squeeze(1)
@@ -116,6 +120,11 @@ class GAN_Trainer:
             D_fake = output.mean().item()
             self.optimizerG.step()
             
+            err_Ds.append(errD.item())
+            err_Gs.append(errG.item())
+            out_fake.append(D_fake)
+            out_real.append(D_real)
+
         return errD.item(), errG.item(), D_fake, D_real
         
     def run(self):

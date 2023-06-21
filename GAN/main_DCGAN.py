@@ -91,11 +91,12 @@ def main(config):
                              num_workers=num_workers)
 
     if config['user'] == 'Noga' or config['user'] == 'tcml':
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
     signal_length = config['sample_length'] * config['fs']
+    print(f'pytorch is using {device}')
 
     g = DCGenerator(nz = config['noise_size'])
     d = DCDiscriminator()
@@ -112,7 +113,7 @@ def main(config):
         generator_lr = config['generator_lr'],
         clearml=config['clearml'],
         exp_dir=exp_dir,
-        noise_std=0.1
+        noise_std=0
     )
     
     GAN_trainer.run()
