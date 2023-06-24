@@ -7,17 +7,19 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from clearml import Task
-from utils import *
-from trainer import Trainer
-from model import EcgResNet34
-from dataset import *
-from transform import Normalize
+import sys
+sys.path.append('.')
+from Classifier.utils import *
+from Classifier.model import EcgResNet34
+from Classifier.dataset import *
+from Classifier.transform import Normalize
+from GAN.models import DCDiscriminator, DC_LSTM_Generator, DC_LSTM_Discriminator
 import random
-from GAN.models import *
+import GAN.seq_models as seqGAN
 from GAN.trainer import *
 
 
-def main(config):
+def main(config, exp_name=None):
     
     # Define the experiment directories
     if config['user'] == 'Noga':
@@ -31,9 +33,11 @@ def main(config):
     elif config['user'] == 'tcml':
         exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len30_overlab5_chan0/'
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
-    exp_name = f"{config['user']}_{config['experiment_name']}"
+    if exp_name is None:
+        exp_name = f"{config['user']}_{config['experiment_name']}"
+
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
@@ -95,8 +99,9 @@ def main(config):
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
     signal_length = config['sample_length'] * config['fs']
+    input_noise_size = config['noise_size']
 
-    g = Generator(signal_length=signal_length)
+    g = Generator(input_noise_size=input_noise_size, out_signal_length=signal_length)
     d = Discriminator(signal_length=signal_length)
 
     GAN_trainer = GAN_Trainer(
@@ -108,8 +113,12 @@ def main(config):
         noise_length=config['noise_size'],
         device=device,
         label=config['GAN_label'],
+        discriminator_lr = config['discriminator_lr'],
+        generator_lr = config['generator_lr'],
         clearml=config['clearml'],
-        exp_dir=exp_dir
+        exp_dir=exp_dir,
+        noise_std=0.15,
+        seq_model=False
     )
     
     GAN_trainer.run()
@@ -125,10 +134,9 @@ def main(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GAN Trainer')
-    parser.add_argument('--config', type=str, default='config.yaml', help='Path to the configuration file')
-
+    parser.add_argument('--config', type=str, default='GAN/config.yaml', help='Path to the configuration file')
     args = parser.parse_args()
-
     config = load_config(args.config)
-    main(config)
+    exp_name = 'FC_GAN_lr_1e-4'
+    main(config, exp_name)
 
