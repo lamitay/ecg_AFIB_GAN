@@ -19,7 +19,7 @@ import GAN.seq_models as seqGAN
 from GAN.trainer import *
 
 
-def main(config):
+def main(config, exp_name=None):
     
     # Define the experiment directories
     if config['user'] == 'Noga':
@@ -35,7 +35,8 @@ def main(config):
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
         data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
-    exp_name = f"{config['user']}_{config['experiment_name']}"
+    if exp_name is None:
+        exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
@@ -132,9 +133,8 @@ def main(config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GAN Trainer')
     parser.add_argument('--config', type=str, default='GAN/config.yaml', help='Path to the configuration file')
-
     args = parser.parse_args()
-
     config = load_config(args.config)
-    main(config)
+    exp_name = 'DC_LSTM_GAN_lr_1e-4'
+    main(config, exp_name)
 

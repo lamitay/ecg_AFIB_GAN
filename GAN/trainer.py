@@ -104,6 +104,8 @@ class GAN_Trainer:
             if self.seq_model:
                 hid = self.netG.init_hidden(batch_size = batch_size)
                 fake = self.netG(noise, hidden = hid)
+            else:
+                fake = self.netG(noise)
 
             label.fill_(fake_label)
             
@@ -155,6 +157,8 @@ class GAN_Trainer:
                 if self.seq_model:
                     hid = self.netG.init_hidden(self.batch_size)
                     fake = self.netG(self.fixed_noise, hidden = hid)
+                else:
+                    fake = self.netG(self.fixed_noise)
                 # Sample 10 generated signals to plot:
                 samples_idx = torch.randint(low=0, high=self.batch_size, size=(10,))
                 samples = fake[samples_idx,...]
