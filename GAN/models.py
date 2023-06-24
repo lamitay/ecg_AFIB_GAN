@@ -125,7 +125,7 @@ class DCGenerator(nn.Module):
 
 class DC_LSTM_Generator(nn.Module):
     def __init__(self, n_features = 1, hidden_dim = 50, seq_length = 1500, num_layers = 2, tanh_output = False):
-        super(Generator,self).__init__()
+        super(DC_LSTM_Generator,self).__init__()
         self.n_features = n_features
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
@@ -187,8 +187,9 @@ class DC_LSTM_Discriminator(nn.Module):
             nn.Conv1d(256, 512, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2, inplace=True),
+            nn.Flatten()
         )
-
+        
         self.lstm = nn.LSTM(512, 256, batch_first=True)
 
         self.linear = nn.Sequential(
@@ -199,8 +200,11 @@ class DC_LSTM_Discriminator(nn.Module):
         )
 
     def forward(self, x, y=None):
+        # Reshape the input to (batch_size, num_channels, sequence_length)
+        x = x.view(x.size(0), 1, -1)
         x = self.conv(x)
-        x, _ = self.lstm(x.permute(0, 2, 1))  # LSTM expects input of shape (batch_size, seq_len, input_size)
+        x = x.view(x.size(0), -1, 512) # reshape the tensor for LSTM layer
+        x, _ = self.lstm(x)  # LSTM expects input of shape (batch_size, seq_len, input_size)
         x = self.linear(x[:, -1, :])  # Use the output from the last time step
         return x
 

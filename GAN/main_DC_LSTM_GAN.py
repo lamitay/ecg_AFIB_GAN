@@ -93,7 +93,7 @@ def main(config, exp_name=None):
                              num_workers=num_workers)
 
     if config['user'] == 'Noga' or config['user'] == 'tcml':
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
