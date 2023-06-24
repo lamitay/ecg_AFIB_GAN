@@ -148,9 +148,9 @@ class GAN_Trainer:
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Fake", value=D_fake_, iteration=epoch)
            
             if epoch % 100 == 0:
-
+                Logger.current_logger().report_scalar(title="Noise STD", series="Noise STD", value=self.noise_std, iteration=epoch)
                 self.noise_std = self.noise_std*0.1 # reduce the variance of the noise that being added to the real data
-
+                
                 print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
                 if self.seq_model:
                     hid = self.netG.init_hidden(self.batch_size)

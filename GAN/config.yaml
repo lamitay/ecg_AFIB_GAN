@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_noise_size_100_declr_1e-4_genlr_1e-4_add_noise_to_real_data_Adam_in_both'
+experiment_name: 'DC_LSTM_GAN_lr_1e-4'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -13,7 +13,7 @@ clearml: True
 
 # Trainer configs
 train_prec: 60
-batch_size: 256
+batch_size: 128
 lr: 0.00001
 loss: 'binary_cross_entropy'
 optimizer: 'AdamW'
