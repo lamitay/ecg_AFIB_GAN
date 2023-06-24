@@ -60,24 +60,23 @@ class DCDiscriminator(nn.Module):
         super().__init__()
         self.main = nn.Sequential(
             # input 1824
-            nn.Conv1d(1, 64, kernel_size=5, stride=2, padding=1, bias=False),
+            nn.Conv1d(1, 64, kernel_size=10, stride=2, padding=1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size 912
-            nn.Conv1d(64, 128, kernel_size=15, stride=2, padding=1, bias=False),
+            nn.Conv1d(64, 128, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(128),
             nn.LeakyReLU(0.2, inplace=True),
             # state size 456
-            nn.Conv1d(128, 256, kernel_size=20,
-                      stride=2, padding=1, bias=False),
+            nn.Conv1d(128, 256, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2, inplace=True),
             # state size 228
-            nn.Conv1d(256, 512, kernel_size=40,
-                      stride=2, padding=1, bias=False),
+            nn.Conv1d(256, 512, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2, inplace=True),
             # state size 114
-            nn.Conv1d(512, 1, kernel_size=70, stride=1, padding=0, bias=False),
+            nn.Conv1d(512, 1, kernel_size=10, stride=1, padding=0, bias=False),
+            nn.AvgPool1d(kernel_size=79),
             nn.Sigmoid()
         )
 
@@ -90,30 +89,37 @@ class DCGenerator(nn.Module):
     def __init__(self, nz):
         super().__init__()
         self.nz=nz
-        self.main = nn.Sequential(
-            nn.ConvTranspose1d(nz, 512, 70, 1, 0, bias=False),
+        self.layer1 = nn.Sequential(
+            nn.ConvTranspose1d(nz, 512, 10, 1, 0, bias=False),
             nn.BatchNorm1d(512),
-            nn.ReLU(True),
+            nn.ReLU(True))
 
-            nn.ConvTranspose1d(512, 256, 40, 2, 1, bias=False),
+        self.layer2 = nn.Sequential(
+            nn.ConvTranspose1d(512, 256, 10, 5, 8, bias=False),
             nn.BatchNorm1d(256),
-            nn.ReLU(True),
+            nn.ReLU(True))
 
-            nn.ConvTranspose1d(256, 128, 20, 2, 1, bias=False),
+        self.layer3 = nn.Sequential(
+            nn.ConvTranspose1d(256, 128, 10, 4, 5, bias=False),
             nn.BatchNorm1d(128),
-            nn.ReLU(True),
+            nn.ReLU(True))
 
-            nn.ConvTranspose1d(128, 64, 15, 2, 1, bias=False),
+        self.layer4 = nn.Sequential(
+            nn.ConvTranspose1d(128, 64, 9, 5, 5, bias=False),
             nn.BatchNorm1d(64),
-            nn.ReLU(True),
+            nn.ReLU(True))
 
-            nn.ConvTranspose1d(64, 1, 10, 2, 1, bias=False),
-            nn.Tanh()
-        )
+        self.layer5 = nn.Sequential(
+            nn.ConvTranspose1d(64, 1, 2, 2, 4, bias=False),
+            nn.Tanh())
 
     def forward(self, x):
         x = x.view(-1, self.nz, 1)
-        x = self.main(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
         return x
 
 
@@ -124,7 +130,7 @@ if __name__ == '__main__':
     # Dec = DCDiscriminator(signal_length=1500)
     Gen = DCGenerator(nz=100)
     Dec = DCDiscriminator()
-    print(summary(Gen, (1,100), device='cpu'))
+    # print(summary(Gen, (1,100), device='cpu'))
     print(Gen)
     print(Dec)
     gen_out = Gen(noise)

@@ -35,7 +35,8 @@ class GAN_Trainer:
         generator_lr,
         clearml,
         exp_dir,
-        noise_std = 0.1
+        noise_std = 0.1,
+        seq_model = False
     ):
         
         self.clearml = clearml
@@ -46,7 +47,7 @@ class GAN_Trainer:
         self.netG = generator.to(self.device)
         self.netD = discriminator.to(self.device)
         
-        self.optimizerD = SGD(self.netD.parameters(), lr=discriminator_lr)
+        self.optimizerD = Adam(self.netD.parameters(), lr=discriminator_lr)
         self.optimizerG = Adam(self.netG.parameters(), lr=generator_lr)
         self.criterion = nn.BCELoss()
         
@@ -55,7 +56,8 @@ class GAN_Trainer:
         self.num_epochs = num_epochs
         self.dataloader = data_loader
         self.noise_std = noise_std
-        
+        self.seq_model = seq_model
+    
         self.fixed_noise = torch.randn(self.batch_size, 1, noise_length, device=self.device)
         self.g_errors = []
         self.d_errors = []
@@ -71,6 +73,8 @@ class GAN_Trainer:
         # for i, data in enumerate(self.dataloader, 0):
         for (inputs, _), meta_data in self.dataloader:
             inputs = inputs.to(self.device).squeeze(1)
+            if inputs.shape[0] != self.batch_size and self.seq_model:
+                break
             # targets = targets.to(self.device).float()
             ##### Update Discriminator: maximize log(D(x)) + log(1 - D(G(z))) #####
             ## train with real data
@@ -97,7 +101,10 @@ class GAN_Trainer:
             
             ## train with fake data
             noise = torch.randn(self.signal_dim, device=self.device)
-            fake = self.netG(noise)
+            if self.seq_model:
+                hid = self.netG.init_hidden(batch_size = batch_size)
+                fake = self.netG(noise, hidden = hid)
+
             label.fill_(fake_label)
             
             output = self.netD(fake.detach())
@@ -145,7 +152,9 @@ class GAN_Trainer:
                 self.noise_std = self.noise_std*0.1 # reduce the variance of the noise that being added to the real data
 
                 print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
-                fake = self.netG(self.fixed_noise)
+                if self.seq_model:
+                    hid = self.netG.init_hidden(self.batch_size)
+                    fake = self.netG(self.fixed_noise, hidden = hid)
                 # Sample 10 generated signals to plot:
                 samples_idx = torch.randint(low=0, high=self.batch_size, size=(10,))
                 samples = fake[samples_idx,...]
