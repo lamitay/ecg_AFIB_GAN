@@ -3,13 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Generator(nn.Module):
-    def __init__(self, input_noise_size=100, out_signal_length=1500):
+    def __init__(self, input_noise_size=100, out_signal_length=1500, num_layers=1):
         super(Generator, self).__init__()
+        self.input_noise_size = input_noise_size
+        self.out_signal_length = out_signal_length
         self.fc1 = nn.Linear(input_noise_size, 256)
         self.fc2 = nn.Linear(256, 512)
         self.fc3 = nn.Linear(512, 1024)
         self.fc4 = nn.Linear(1024, out_signal_length)
-    
+        self.lstm = nn.LSTM(out_signal_length, 512, num_layers=num_layers, batch_first=True)
+        self.fc5 = nn.Linear(512, out_signal_length)
+
     def forward(self, x):
         x = x.view(x.size(0), -1)
         x = F.leaky_relu(self.fc1(x))
@@ -18,6 +22,15 @@ class Generator(nn.Module):
         x = F.leaky_relu(self.fc3(x))
         x = F.dropout(x, p=0.2)
         x = self.fc4(x)
+
+        # Reshape the output for the LSTM, treating the signal as a sequence
+        x = x.view(x.size(0), 1, self.out_signal_length)
+        x, _ = self.lstm(x)
+
+        # Flatten the output for the dense layer
+        x = x.view(x.size(0), -1)
+
+        x = self.fc5(x)
         return x.unsqueeze(1)
 
 

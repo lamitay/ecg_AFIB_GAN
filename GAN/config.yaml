@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'DC_LSTM_GAN_lr_1e-4'
+experiment_name: 'DC_LSTM_WGAN_GP_lr_1e-4'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -36,3 +36,5 @@ GAN_label: 1
 noise_size : 100
 discriminator_lr : 0.0001
 generator_lr : 0.0001
+wgan_gp: True
+wgan_gp_lambda: 0.3

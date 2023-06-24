@@ -116,7 +116,9 @@ def main(config, exp_name=None):
         clearml=config['clearml'],
         exp_dir=exp_dir,
         noise_std=0.15,
-        seq_model=True
+        seq_model=True,
+        wgan_gp=config['wgan_gp'],
+        wgan_gp_lambda=config['wgan_gp_lambda']
     )
     
     GAN_trainer.run()
