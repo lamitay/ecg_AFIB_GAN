@@ -1,2 +1,4 @@
 /__pycache__
 /logs
+/GAN/__pycache__
+/classifier/__pycache__

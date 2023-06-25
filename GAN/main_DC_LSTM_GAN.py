@@ -37,7 +37,6 @@ def main(config, exp_name=None):
     
     if exp_name is None:
         exp_name = f"{config['user']}_{config['experiment_name']}"
-
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
@@ -99,11 +98,10 @@ def main(config, exp_name=None):
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
     signal_length = config['sample_length'] * config['fs']
-    input_noise_size = config['noise_size']
+    print(f'pytorch is using {device}')
 
-    g = Generator(input_noise_size=input_noise_size, out_signal_length=signal_length)
-    d = Discriminator(signal_length=signal_length)
-
+    g = DC_LSTM_Generator(seq_length=signal_length, hidden_dim=256, n_features=config['noise_size'], tanh_output = True, num_layers=2)
+    d = DC_LSTM_Discriminator()
     GAN_trainer = GAN_Trainer(
         generator=g,
         discriminator=d,
@@ -118,7 +116,9 @@ def main(config, exp_name=None):
         clearml=config['clearml'],
         exp_dir=exp_dir,
         noise_std=0.15,
-        seq_model=False
+        seq_model=True,
+        wgan_gp=config['wgan_gp'],
+        wgan_gp_lambda=config['wgan_gp_lambda']
     )
     
     GAN_trainer.run()
@@ -137,6 +137,6 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default='GAN/config.yaml', help='Path to the configuration file')
     args = parser.parse_args()
     config = load_config(args.config)
-    exp_name = 'FC_LSTM_GAN_lr_1e-4'
+    exp_name = 'DC_LSTM_GAN_lr_1e-4'
     main(config, exp_name)
 

@@ -150,7 +150,7 @@ layers with a final fully connected layer.
 """
 
 class Generator(nn.Module):
-  def __init__(self,seq_length, n_features = 1, hidden_dim = 50, 
+  def __init__(self, seq_length, n_features = 1, hidden_dim = 50, 
                num_layers = 2, tanh_output = False):
       super(Generator,self).__init__()
       self.n_features = n_features

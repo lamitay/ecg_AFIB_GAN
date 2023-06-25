@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_noise_size_100_lrgen1e-4_lrdec5e-4_lstm_hid_layer_512'
+experiment_name: 'DC_LSTM_WGAN_GP_lr_1e-4'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -38,3 +38,5 @@ discriminator_lr : 0.0005
 generator_lr : 0.0001
 lstm_hid_dim : 512
 lstm_num_layers : 2
+wgan_gp: True
+wgan_gp_lambda: 0.3

@@ -37,6 +37,8 @@ class GAN_Trainer:
         exp_dir,
         noise_std = 0.1,
         seq_model = False,
+        wgan_gp = False,
+        wgan_gp_lambda = 0.3,
         early_stopping = True,
         early_stopping_patience = 100 
         ):
@@ -59,6 +61,11 @@ class GAN_Trainer:
         self.dataloader = data_loader
         self.noise_std = noise_std
         self.seq_model = seq_model
+
+        if wgan_gp:
+            self.wgan_gp = wgan_gp
+            self.wgan_gp_lambda = wgan_gp_lambda
+            
     
         self.fixed_noise = torch.randn(self.batch_size, 1, noise_length, device=self.device)
         self.g_errors = []
@@ -66,6 +73,24 @@ class GAN_Trainer:
 
         self.early_stopping = early_stopping
         self.early_stopping_patience = early_stopping_patience
+        
+
+    def calc_gradient_penalty(netD, real_data, fake_data):
+        alpha = torch.rand(real_data.size(0), 1, 1).to(self.device)
+        alpha = alpha.expand_as(real_data)
+
+        interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+        interpolates = interpolates.requires_grad_(True)
+
+        disc_interpolates = netD(interpolates)
+
+        gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                grad_outputs=torch.ones_like(disc_interpolates),
+                                create_graph=True, retain_graph=True)[0]
+                                
+        gradients = gradients.view(gradients.size(0), -1)
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradient_penalty
         
     def _one_epoch(self):
         real_label = 1
@@ -109,6 +134,8 @@ class GAN_Trainer:
             if self.seq_model:
                 hid = self.netG.init_hidden(batch_size = batch_size)
                 fake = self.netG(noise, hidden = hid)
+            else:
+                fake = self.netG(noise)
 
             label.fill_(fake_label)
             
@@ -116,6 +143,11 @@ class GAN_Trainer:
             output = output.view(-1)
             
             errD_fake = self.criterion(output, label)
+
+            if self.wgan_gp:
+                gradient_penalty = self.calc_gradient_penalty(self.netD, real_data, fake)
+                errD_fake += self.wgan_gp_lambda * gradient_penalty
+                
             errD_fake.backward()
             D_G_z1 = output.mean().item()
             errD = errD_real + errD_fake 
@@ -154,18 +186,23 @@ class GAN_Trainer:
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Fake", value=D_fake_, iteration=epoch)
            
             if epoch % 100 == 0:
-
+                Logger.current_logger().report_scalar(title="Noise STD", series="Noise STD", value=self.noise_std, iteration=epoch)
                 self.noise_std = self.noise_std*0.1 # reduce the variance of the noise that being added to the real data
-
+                
                 print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
                 if self.seq_model:
                     hid = self.netG.init_hidden(self.batch_size)
                     fake = self.netG(self.fixed_noise, hidden = hid)
+                else:
+                    fake = self.netG(self.fixed_noise)
                 # Sample 10 generated signals to plot:
                 samples_idx = torch.randint(low=0, high=self.batch_size, size=(10,))
                 samples = fake[samples_idx,...]
                 plt.figure()
-                plt.plot(samples.detach().cpu().squeeze(1).numpy()[:].transpose())
+                if self.seq_model:
+                    plt.plot(samples.detach().cpu().squeeze(1).numpy()[:].transpose()[:,0,:])
+                else:
+                    plt.plot(samples.detach().cpu().squeeze(1).numpy()[:].transpose())
                 plt.title(f'generated_samples_epoch_{epoch}')
                 plt.savefig(os.path.join(self.results_dir,f'generated_samples_epoch_{epoch}.png'))
                 plt.close()
