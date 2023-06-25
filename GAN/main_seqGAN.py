@@ -113,7 +113,7 @@ def main(config):
     p2_k = 3
     p2_s = 2
 
-    g = seqGAN.Generator(1500, hidden_dim =  256, n_features=config['noise_size'], tanh_output = True, num_layers=2)
+    g = seqGAN.Generator(signal_length, hidden_dim =  config['lstm_hid_dim'], n_features=config['noise_size'], tanh_output = True, num_layers = config['lstm_num_layers'])
     # d = seqGAN.Discriminator(1500, 256 ,minibatch_normal_init = minibatch_normal_init_,
     #                      minibatch = minibatch_layer,num_cv = num_cvs, cv1_out = cv1_out,cv1_k = cv1_k,
     #                        cv1_s = cv1_s, p1_k = p1_k, p1_s = p1_s, cv2_out= cv2_out, cv2_k = cv2_k, cv2_s = cv2_s,
@@ -133,7 +133,9 @@ def main(config):
         clearml=config['clearml'],
         exp_dir=exp_dir,
         noise_std=0.15,
-        seq_model=True
+        seq_model=True,
+        early_stopping = config['early_stopping'],
+        early_stopping_patience = config['early_stopping_patience']
     )
     
     GAN_trainer.run()

@@ -36,8 +36,10 @@ class GAN_Trainer:
         clearml,
         exp_dir,
         noise_std = 0.1,
-        seq_model = False
-    ):
+        seq_model = False,
+        early_stopping = True,
+        early_stopping_patience = 100 
+        ):
         
         self.clearml = clearml
         self.exp_dir = exp_dir
@@ -61,6 +63,9 @@ class GAN_Trainer:
         self.fixed_noise = torch.randn(self.batch_size, 1, noise_length, device=self.device)
         self.g_errors = []
         self.d_errors = []
+
+        self.early_stopping = early_stopping
+        self.early_stopping_patience = early_stopping_patience
         
     def _one_epoch(self):
         real_label = 1
@@ -135,6 +140,7 @@ class GAN_Trainer:
         return errD.item(), errG.item(), D_fake, D_real
         
     def run(self):
+        best_loss = float('inf')
         for epoch in tqdm(range(self.num_epochs)):
             errD_, errG_, D_fake_, D_real_ = self._one_epoch()
             self.d_errors.append(errD_)
@@ -164,13 +170,22 @@ class GAN_Trainer:
                 plt.savefig(os.path.join(self.results_dir,f'generated_samples_epoch_{epoch}.png'))
                 plt.close()
 
-        # Save best models
-        gen_name = f"epoch_{epoch}_generator_model.pth"
-        disc_name = f"epoch_{epoch}_discriminator_model.pth"
-        gen_path = os.path.join(self.exp_dir, 'models', gen_name)
-        disc_path = os.path.join(self.exp_dir, 'models', disc_name)
-        torch.save(self.netG.state_dict(), gen_path)
-        torch.save(self.netD.state_dict(), disc_path)
+            # early stopping on the generator loss:
+            if errG_ < best_loss:
+                best_loss = errG_
+                epochs_without_improvement = 0
+                self.save_models(epoch=epoch)
+
+            else:
+                epochs_without_improvement += 1
+            
+            if self.early_stopping:
+                if epochs_without_improvement >= self.early_stopping_patience:
+                    print(f"Generator error keep increasing... Early stopping criterion met at Epoch {epoch}. Training stopped.")
+                    break
+
+        # Save last models
+        self.save_models(epoch=epoch)
 
         # Save loss curves
         self.save_loss_curves()
@@ -184,6 +199,15 @@ class GAN_Trainer:
         plt.xlabel('# Epoch')
         plt.close()
 
+    def save_models(self, epoch):
+        gen_name = f"epoch_{epoch}_generator_model.pth"
+        disc_name = f"epoch_{epoch}_discriminator_model.pth"
+        gen_path = os.path.join(self.exp_dir, 'models', gen_name)
+        disc_path = os.path.join(self.exp_dir, 'models', disc_name)
+        torch.save(self.netG.state_dict(), gen_path)
+        torch.save(self.netD.state_dict(), disc_path)
+        print(f"Saved generator model from Epoch: {epoch}' at {gen_path}")
+        print(f"Saved discriminator model from Epoch: {epoch}' at {disc_path}")
         
 
 

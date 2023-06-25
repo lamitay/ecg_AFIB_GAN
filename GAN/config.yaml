@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_noise_size_100_declr_1e-4_genlr_1e-4_add_noise_to_real_data_Adam_in_both'
+experiment_name: 'seqGAN_noise_size_100_lrgen1e-4_lrdec5e-4_lstm_hid_layer_512'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -20,7 +20,7 @@ optimizer: 'AdamW'
 lr_scheduler: 'ReduceLROnPlateau'
 epochs: 50
 early_stopping: True
-early_stopping_patience: 10
+early_stopping_patience: 100 
 output_model_path: 'model.pth'
 classifier_th: 0.75
 
@@ -34,5 +34,7 @@ GAN_epochs: 500
 GAN_batch_size: 256
 GAN_label: 1
 noise_size : 100
-discriminator_lr : 0.0001
+discriminator_lr : 0.0005
 generator_lr : 0.0001
+lstm_hid_dim : 512
+lstm_num_layers : 2
