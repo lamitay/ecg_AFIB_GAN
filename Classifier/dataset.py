@@ -67,6 +67,7 @@ class AF_dataset(Dataset):
 
         return (signal, label), meta_data.to_dict()
 
+
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
     record_names = []

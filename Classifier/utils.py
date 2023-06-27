@@ -12,6 +12,8 @@ from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
 from clearml import Logger
 import matplotlib.pyplot as plt
+import csv
+import scipy
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -65,6 +67,38 @@ def split_records_train_val_test(record_names, train_prec=80):
     
     return train_records_names, val_records_names, test_records_names
 
+def split_records_to_intervals_physioNet_challenge(record_df, sample_length):
+    """split each of the records to intervals and the annotation to a binary 1D vector 
+
+    Args:
+        record (wfdb.record): the record object of wfdb
+        annotation (wfdb.annotation): the annotation object of wfdb
+        sample_length (float/int): the length of the required intervals in seconds 
+
+    Returns:
+        torch.Tensors: intervals, labels
+    """
+    file_name = os.path.join(folder_path, record_df['record_name'])
+    mat_data = scipy.io.loadmat(file_name + ".mat")
+    data = mat_data['val'] 
+    fs = 300
+    meta_data = {}
+    meta_data['record_file_name'] = record_df['record_name']
+
+    num_of_samples_in_interval = fs*sample_length
+    num_of_intervals = int(np.floor(data.shape[1]/num_of_samples_in_interval))
+    intervals = data[0, :num_of_intervals*num_of_samples_in_interval].reshape((num_of_intervals, num_of_samples_in_interval))
+    if record_df['label'] == 'N':
+        labels = np.zeros((1,num_of_intervals))
+    else:
+        labels = np.ones((1,num_of_intervals))
+    bsqi_scores = []
+    for i in range(num_of_intervals):
+        bsqi_scores.append(bsqi(intervals[i,:], fs))
+
+    meta_data['bsqi_scores'] = bsqi_scores
+    meta_data['num_of_bit'] = np.zeros_like(labels)
+    return intervals, labels, meta_data
 
 def split_records_to_intervals(record, annotation, qrs, sample_length, channel, overlap, calc_bsqi):
     """split each of the records to intervals and the annotation to a binary 1D vector 
@@ -245,6 +279,38 @@ def create_dataset(folder_path, records_names, path_to_save_dataset, sample_leng
     # Save meta_data dataframe to csv file    
     pd.concat(meta_data_dfs, ignore_index=True).to_csv(os.path.join(path_to_save_dataset, 'meta_data.csv'))
 
+def create_dataset_physioNet_challenge(folder_path, path_to_save_dataset, sample_length, channel, overlap, calc_bsqi = False):
+    """create dataset folder from the phyionet challenge from 2017
+
+    Args:
+        folder_path (string): path to records path
+        records_names (list): records name to crate dataset with
+        path_to_save_dataset (string): path to where dataset folder will be saved
+        sample_length (int): length of each segment in seconds
+        channel (int): whether to use the first channel (0) or the second (1)
+        overlap (int): overlap between segments in seconds
+    """
+
+    # Load the records name and filter to get only the Normal and AF records
+    records_names = pd.read_csv(os.path.join(folder_path,'REFERENCE.csv'),names = ['record_name','label'])
+    records_names = records_names[records_names['label'].isin(['A', 'N'])]
+    path_to_save_dataset = os.path.join(path_to_save_dataset,f'physioNet_challenge_dataset_len{sample_length}_overlab{overlap}_chan{channel}')
+    # Check if dataset already exist:
+    if not os.path.exists(path_to_save_dataset):
+        os.mkdir(path_to_save_dataset)
+        os.mkdir(os.path.join(path_to_save_dataset, 'intervals'))
+        os.mkdir(os.path.join(path_to_save_dataset, 'images'))
+        
+    meta_data_dfs = [] 
+    for idx, row in records_names.iterrows():
+        intervals, annots, meta_data = split_records_to_intervals_physioNet_challenge(row, 
+                                                                  sample_length = sample_length), #in seconds!
+        
+        record_meta_data = save_intervals_from_record(path_to_save_dataset, intervals, annots, meta_data, 300)
+        meta_data_dfs.append(record_meta_data)
+        print(f'Finish saving intervals of record {row["record_name"]}')
+    # Save meta_data dataframe to csv file    
+    pd.concat(meta_data_dfs, ignore_index=True).to_csv(os.path.join(path_to_save_dataset, 'meta_data.csv'))
 
 
 
@@ -339,23 +405,28 @@ def report_df_to_clearml(df, clearml_task, d_type=None):
 
 
 if __name__ == '__main__':
-    folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
-    record_names = []
-    for file in os.listdir(folder_path):
-        if file.endswith('.hea'):  # we find only the .hea files.
-            record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
+    # Create external dataset:
+    folder_path = '/tcmldrive/NogaK/ECG_classification/training2017'
+    create_dataset_physioNet_challenge(folder_path=folder_path, path_to_save_dataset='/tcmldrive/NogaK/ECG_classification/', sample_length=6, channel=0, overlap=0,calc_bsqi=True)
 
-    create_dataset(folder_path, record_names, 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse', 30, 0, 5, calc_bsqi = True)
-    ## TESTS :
-    # test1 verify that no mixed labels intervals are being created:
-    x = torch.rand(100000)
-    y = torch.zeros(100000)
-    y[::2] = 1
-    interval, labels = segment_and_label(x, y, 100, 0)
-    assert len(interval) == 0, 'In this tests all intervals should have mixed labels so no intervals should be created'
 
-    # test2 verify that if there are no mixed labels, all the intervals are being created:
-    x = torch.rand(100000)
-    y = torch.zeros(100000)
-    interval, labels = segment_and_label(x, y, 100, 0)
-    assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'
+    # folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
+    # record_names = []
+    # for file in os.listdir(folder_path):
+    #     if file.endswith('.hea'):  # we find only the .hea files.
+    #         record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
+
+    # create_dataset(folder_path, record_names, 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse', 30, 0, 5, calc_bsqi = True)
+    # ## TESTS :
+    # # test1 verify that no mixed labels intervals are being created:
+    # x = torch.rand(100000)
+    # y = torch.zeros(100000)
+    # y[::2] = 1
+    # interval, labels = segment_and_label(x, y, 100, 0)
+    # assert len(interval) == 0, 'In this tests all intervals should have mixed labels so no intervals should be created'
+
+    # # test2 verify that if there are no mixed labels, all the intervals are being created:
+    # x = torch.rand(100000)
+    # y = torch.zeros(100000)
+    # interval, labels = segment_and_label(x, y, 100, 0)
+    # assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'

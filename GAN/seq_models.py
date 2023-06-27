@@ -170,7 +170,7 @@ class Generator(nn.Module):
             nn.ReLU(True))
       
       self.lstm = nn.LSTM(input_size = 4992, hidden_size = self.hidden_dim, 
-                                  num_layers = self.num_layers,batch_first = True#,dropout = 0.2,
+                                  num_layers = self.num_layers, batch_first = True, dropout = 0.1,
                                  )
       if self.tanh_output == True:
         self.out = nn.Sequential(nn.Linear(self.hidden_dim,self.seq_length),nn.Tanh()) # to make sure the output is between 0 and 1 - removed ,nn.Sigmoid()

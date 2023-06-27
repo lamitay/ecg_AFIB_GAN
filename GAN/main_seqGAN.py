@@ -8,6 +8,9 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from clearml import Task
 import sys
+import matplotlib
+matplotlib.use('Agg') 
+
 sys.path.append('.')
 from Classifier.utils import *
 from Classifier.model import EcgResNet34
@@ -17,6 +20,7 @@ from GAN.models import DCDiscriminator
 import random
 import GAN.seq_models as seqGAN
 from GAN.trainer import *
+
 
 
 def main(config):
@@ -46,6 +50,16 @@ def main(config):
     torch.manual_seed(config['seed'])
     random.seed(config['seed'])
 
+    # Set the seed for the dataloader workers
+    def seed_worker(worker_id):
+        worker_seed = torch.initial_seed() % 2**32
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+    g = torch.Generator()
+    g.manual_seed(0)
+
+
     # Data
     record_names = get_record_names_from_folder(records_folder_path)
     train_records_names, validation_records_names, test_records_names = split_records_train_val_test(record_names, config['train_prec'])
@@ -63,7 +77,9 @@ def main(config):
     train_loader = DataLoader(train_dataset, 
                               batch_size=config['GAN_batch_size'], 
                               shuffle=True, 
-                              num_workers=num_workers)
+                              num_workers=4, 
+                              worker_init_fn=seed_worker, 
+                              generator=g)
     
     validation_dataset = AF_dataset(dataset_folder_path= data_folder_path, 
                                     exp_dir= exp_dir, 
@@ -76,7 +92,9 @@ def main(config):
     validation_loader = DataLoader(validation_dataset, 
                                    batch_size=config['GAN_batch_size'], 
                                    shuffle=False, 
-                                   num_workers=num_workers)
+                                   num_workers=4,  
+                                   worker_init_fn=seed_worker, 
+                                   generator=g)
     
     test_dataset = AF_dataset(dataset_folder_path= data_folder_path, 
                               exp_dir= exp_dir, 
@@ -89,7 +107,9 @@ def main(config):
     test_loader = DataLoader(test_dataset, 
                              batch_size=config['GAN_batch_size'], 
                              shuffle=False,  
-                             num_workers=num_workers)
+                             num_workers=4, 
+                             worker_init_fn=seed_worker, 
+                             generator=g)
 
     if config['user'] == 'Noga' or config['user'] == 'tcml':
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -99,26 +119,10 @@ def main(config):
     signal_length = config['sample_length'] * config['fs']
     print(f'pytorch is using {device}')
 
-    minibatch_layer = 0
-    minibatch_normal_init_ = True
-    num_cvs = 2
-    cv1_out= 10
-    cv1_k = 3
-    cv1_s = 1
-    p1_k = 3
-    p1_s = 2
-    cv2_out = 10
-    cv2_k = 3
-    cv2_s = 1
-    p2_k = 3
-    p2_s = 2
 
     g = seqGAN.Generator(signal_length, hidden_dim =  config['lstm_hid_dim'], n_features=config['noise_size'], tanh_output = True, num_layers = config['lstm_num_layers'])
-    # d = seqGAN.Discriminator(1500, 256 ,minibatch_normal_init = minibatch_normal_init_,
-    #                      minibatch = minibatch_layer,num_cv = num_cvs, cv1_out = cv1_out,cv1_k = cv1_k,
-    #                        cv1_s = cv1_s, p1_k = p1_k, p1_s = p1_s, cv2_out= cv2_out, cv2_k = cv2_k, cv2_s = cv2_s,
-    #                          p2_k = p2_k, p2_s = p2_s)
     d = DCDiscriminator()
+    
     GAN_trainer = GAN_Trainer(
         generator=g,
         discriminator=d,
@@ -132,7 +136,7 @@ def main(config):
         generator_lr = config['generator_lr'],
         clearml=config['clearml'],
         exp_dir=exp_dir,
-        noise_std=0.15,
+        noise_std=config['noise_std_for_real'],
         seq_model=True,
         early_stopping = config['early_stopping'],
         early_stopping_patience = config['early_stopping_patience']

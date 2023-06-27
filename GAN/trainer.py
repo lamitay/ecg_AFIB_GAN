@@ -62,9 +62,9 @@ class GAN_Trainer:
         self.noise_std = noise_std
         self.seq_model = seq_model
 
-        if wgan_gp:
-            self.wgan_gp = wgan_gp
-            self.wgan_gp_lambda = wgan_gp_lambda
+        
+        self.wgan_gp = wgan_gp
+        self.wgan_gp_lambda = wgan_gp_lambda
             
     
         self.fixed_noise = torch.randn(self.batch_size, 1, noise_length, device=self.device)
@@ -75,7 +75,7 @@ class GAN_Trainer:
         self.early_stopping_patience = early_stopping_patience
         
 
-    def calc_gradient_penalty(netD, real_data, fake_data):
+    def calc_gradient_penalty(self, netD, real_data, fake_data):
         alpha = torch.rand(real_data.size(0), 1, 1).to(self.device)
         alpha = alpha.expand_as(real_data)
 
@@ -184,11 +184,12 @@ class GAN_Trainer:
                 Logger.current_logger().report_scalar(title="Epoch Loss", series="Discriminator Loss", value=errD_, iteration=epoch)
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Real", value=D_real_, iteration=epoch)
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Fake", value=D_fake_, iteration=epoch)
-           
-            if epoch % 100 == 0:
                 Logger.current_logger().report_scalar(title="Noise STD", series="Noise STD", value=self.noise_std, iteration=epoch)
-                self.noise_std = self.noise_std*0.1 # reduce the variance of the noise that being added to the real data
                 
+
+            if epoch % 100 == 0:  
+                if epoch != 0:
+                    self.noise_std = self.noise_std*0.5 # reduce the variance of the noise that being added to the real data          
                 print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
                 if self.seq_model:
                     hid = self.netG.init_hidden(self.batch_size)
@@ -199,10 +200,7 @@ class GAN_Trainer:
                 samples_idx = torch.randint(low=0, high=self.batch_size, size=(10,))
                 samples = fake[samples_idx,...]
                 plt.figure()
-                if self.seq_model:
-                    plt.plot(samples.detach().cpu().squeeze(1).numpy()[:].transpose()[:,0,:])
-                else:
-                    plt.plot(samples.detach().cpu().squeeze(1).numpy()[:].transpose())
+                plt.plot(samples.detach().cpu().squeeze(1).numpy()[:].transpose())
                 plt.title(f'generated_samples_epoch_{epoch}')
                 plt.savefig(os.path.join(self.results_dir,f'generated_samples_epoch_{epoch}.png'))
                 plt.close()
@@ -211,7 +209,7 @@ class GAN_Trainer:
             if errG_ < best_loss:
                 best_loss = errG_
                 epochs_without_improvement = 0
-                self.save_models(epoch=epoch)
+                # self.save_models(epoch=epoch)
 
             else:
                 epochs_without_improvement += 1
