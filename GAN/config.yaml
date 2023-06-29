@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_1000epochs_with_noise_in_real'
+experiment_name: 'seqGAN_3layersLSTM_1000epochs_lr_schedular'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -30,14 +30,14 @@ fs: 250
 overlap: 0
 
 # GAN configs
-GAN_epochs: 500
+GAN_epochs: 1000
 GAN_batch_size: 512
 GAN_label: 1
 noise_size : 100
 discriminator_lr : 0.0001
 generator_lr : 0.0001
 lstm_hid_dim : 512
-lstm_num_layers : 2
+lstm_num_layers : 3
 wgan_gp: False
 wgan_gp_lambda: 0.3
 noise_std_for_real : 0.15

@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW, Adam, SGD
+from torch.optim import AdamW, Adam, SGD, lr_scheduler
 from clearml import Logger
 
 from GAN.models import Generator, Discriminator
@@ -40,7 +40,8 @@ class GAN_Trainer:
         wgan_gp = False,
         wgan_gp_lambda = 0.3,
         early_stopping = True,
-        early_stopping_patience = 100 
+        early_stopping_patience = 100,
+        with_lr_scheduler = True,
         ):
         
         self.clearml = clearml
@@ -53,6 +54,10 @@ class GAN_Trainer:
         
         self.optimizerD = Adam(self.netD.parameters(), lr=discriminator_lr)
         self.optimizerG = Adam(self.netG.parameters(), lr=generator_lr)
+        self.with_lr_scheduler = with_lr_scheduler
+        if with_lr_scheduler:
+            self.schedulerD = lr_scheduler.StepLR(self.optimizerD,  step_size=250, gamma=0.5)
+            self.schedulerG = lr_scheduler.StepLR(self.optimizerG,  step_size=250, gamma=0.5)
         self.criterion = nn.BCELoss()
         
         self.batch_size = batch_size
@@ -185,7 +190,7 @@ class GAN_Trainer:
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Real", value=D_real_, iteration=epoch)
                 Logger.current_logger().report_scalar(title="Epoch Discriminator Mean Output", series=" Discriminator Mean Output - Fake", value=D_fake_, iteration=epoch)
                 Logger.current_logger().report_scalar(title="Noise STD", series="Noise STD", value=self.noise_std, iteration=epoch)
-                
+                Logger.current_logger().report_scalar(title="Learning Rate", series="Learning Rate", value=self.optimizerD.param_groups[0]['lr'], iteration=epoch)
 
             if epoch % 100 == 0:  
                 if epoch != 0:
@@ -205,6 +210,11 @@ class GAN_Trainer:
                 plt.savefig(os.path.join(self.results_dir,f'generated_samples_epoch_{epoch}.png'))
                 plt.close()
 
+            if self.with_lr_scheduler:
+            # lr schedular step:
+                self.schedulerD.step()
+                self.schedulerG.step() 
+            
             # early stopping on the generator loss:
             if errG_ < best_loss:
                 best_loss = errG_

@@ -21,8 +21,6 @@ import random
 import GAN.seq_models as seqGAN
 from GAN.trainer import *
 
-
-
 def main(config):
     
     # Define the experiment directories
@@ -118,7 +116,6 @@ def main(config):
     
     signal_length = config['sample_length'] * config['fs']
     print(f'pytorch is using {device}')
-
 
     g = seqGAN.Generator(signal_length, hidden_dim =  config['lstm_hid_dim'], n_features=config['noise_size'], tanh_output = True, num_layers = config['lstm_num_layers'])
     d = DCDiscriminator()

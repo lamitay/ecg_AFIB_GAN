@@ -97,8 +97,8 @@ def split_records_to_intervals_physioNet_challenge(record_df, sample_length):
         bsqi_scores.append(bsqi(intervals[i,:], fs))
 
     meta_data['bsqi_scores'] = bsqi_scores
-    meta_data['num_of_bit'] = np.zeros_like(labels)
-    return intervals, labels, meta_data
+    meta_data['num_of_bit'] = np.zeros_like(labels[0])
+    return intervals, labels[0], meta_data
 
 def split_records_to_intervals(record, annotation, qrs, sample_length, channel, overlap, calc_bsqi):
     """split each of the records to intervals and the annotation to a binary 1D vector 
@@ -219,7 +219,7 @@ def save_intervals_from_record(dataset_path, intervals, annots, meta_data, fs):
         file_name = f'{record_file_name[:-4]}_recordID_{i}_label_{label}_bsqi_{bsqi_score:.3f}.npy'
 
         # Save interval to npy file
-        np.save(os.path.join(dataset_path, 'intervals', file_name), interval.numpy())
+        np.save(os.path.join(dataset_path, 'intervals', file_name), interval)
 
         # Save interval plot :
         t = np.arange(0, len(interval)/fs, 1/fs)
@@ -233,9 +233,9 @@ def save_intervals_from_record(dataset_path, intervals, annots, meta_data, fs):
         interval_meta_data = {'record_file_name' : record_file_name,
                               'interval_path' : file_name,
                               'image_path' : file_name[:-4]+'.png',
-                              'num_of_bits' : meta_data['num_of_bit'][i].item(),
-                              'bsqi_score' : bsqi_score.item(),
-                              'label' : label.item()}
+                              'num_of_bits' : meta_data['num_of_bit'][i],
+                              'bsqi_score' : bsqi_score,
+                              'label' : label}
         
         dfs.append(pd.Series(interval_meta_data))
     record_meta_data = pd.concat(dfs,axis=1).T
@@ -303,8 +303,7 @@ def create_dataset_physioNet_challenge(folder_path, path_to_save_dataset, sample
         
     meta_data_dfs = [] 
     for idx, row in records_names.iterrows():
-        intervals, annots, meta_data = split_records_to_intervals_physioNet_challenge(row, 
-                                                                  sample_length = sample_length), #in seconds!
+        intervals, annots, meta_data = split_records_to_intervals_physioNet_challenge(row, sample_length = sample_length) #in seconds!
         
         record_meta_data = save_intervals_from_record(path_to_save_dataset, intervals, annots, meta_data, 300)
         meta_data_dfs.append(record_meta_data)

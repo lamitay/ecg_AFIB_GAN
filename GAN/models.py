@@ -79,17 +79,17 @@ class DCDiscriminator(nn.Module):
         self.layer2 = nn.Sequential(nn.Conv1d(64, 128, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(128),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout(0.2))  # Add another dropout layer with dropout probability of 0.5
+            nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
 
         self.layer3 = nn.Sequential(nn.Conv1d(128, 256, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout(0.2))  # Add another dropout layer with dropout probability of 0.5
+            nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
 
         self.layer4 = nn.Sequential(nn.Conv1d(256, 512, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout(0.3))  # Add another dropout layer with dropout probability of 0.5
+            nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
             
         self.layer5 = nn.Sequential(nn.Conv1d(512, 1, kernel_size=10, stride=1, padding=0, bias=False))
         self.minibatchDis = MinibatchDiscrimination1d(79, 1)
