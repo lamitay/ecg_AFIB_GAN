@@ -69,7 +69,7 @@ class GAN_Trainer:
         self.g_errors = []
         self.d_errors = []
 
-    def calc_gradient_penalty(netD, real_data, fake_data):
+    def calc_gradient_penalty(self, netD, real_data, fake_data):
         alpha = torch.rand(real_data.size(0), 1, 1).to(self.device)
         alpha = alpha.expand_as(real_data)
 
@@ -141,7 +141,7 @@ class GAN_Trainer:
             if self.wgan_gp:
                 gradient_penalty = self.calc_gradient_penalty(self.netD, real_data, fake)
                 errD_fake += self.wgan_gp_lambda * gradient_penalty
-                
+
             errD_fake.backward()
             D_G_z1 = output.mean().item()
             errD = errD_real + errD_fake 
