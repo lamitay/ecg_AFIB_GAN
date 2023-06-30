@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from seq_models import MinibatchDiscrimination
+from torchgan.layers import MinibatchDiscrimination1d
 class Generator(nn.Module):
     def __init__(self, input_noise_size=100, out_signal_length=1500, num_layers=1):
         super(Generator, self).__init__()
@@ -67,34 +68,44 @@ def weights_init(m):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
-
 class DCDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
-        self.main = nn.Sequential(
-            # input 1824 - not 1500?
+        self.layer1 = nn.Sequential(
             nn.Conv1d(1, 64, kernel_size=10, stride=2, padding=1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size 912 - 750?
-            nn.Conv1d(64, 128, kernel_size=10, stride=2, padding=1, bias=False),
+            nn.Dropout(0.2))  # Add dropout layer with dropout probability of 0.2
+
+        self.layer2 = nn.Sequential(nn.Conv1d(64, 128, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(128),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size 456 - 375?
-            nn.Conv1d(128, 256, kernel_size=10, stride=2, padding=1, bias=False),
+            nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
+
+        self.layer3 = nn.Sequential(nn.Conv1d(128, 256, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size 228 - 187.5?
-            nn.Conv1d(256, 512, kernel_size=10, stride=2, padding=1, bias=False),
+            nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
+
+        self.layer4 = nn.Sequential(nn.Conv1d(256, 512, kernel_size=10, stride=2, padding=1, bias=False),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size 114 - 93.75??
-            nn.Conv1d(512, 1, kernel_size=10, stride=1, padding=0, bias=False),
-            nn.AvgPool1d(kernel_size=79),
-            nn.Sigmoid()
-        )
+            nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
+            
+        self.layer5 = nn.Sequential(nn.Conv1d(512, 1, kernel_size=10, stride=1, padding=0, bias=False))
+        self.minibatchDis = MinibatchDiscrimination1d(79, 1)
+        self.avgPool = nn.AvgPool1d(kernel_size=80)
+        self.sig = nn.Sigmoid()
+        
 
     def forward(self, x, y=None):
-        x = self.main(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
+        x = self.minibatchDis(x.squeeze(1)).unsqueeze(1)
+        x = self.avgPool(x)
+        x = self.sig(x)
         return x.squeeze(-1)
 
 
