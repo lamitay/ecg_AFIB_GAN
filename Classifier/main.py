@@ -15,7 +15,7 @@ from transform import Normalize
 import random
 
 
-def main(config):
+def main(config, exp_name=None):
     
     # Define the experiment directories
     if config['user'] == 'Noga':
@@ -31,11 +31,13 @@ def main(config):
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
         data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
-    exp_name = f"{config['user']}_{config['experiment_name']}"
+    if exp_name is None:
+        exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
         clearml_task = Task.init(project_name="ecg_AFIB_GAN", task_name=exp_name)
+        clearml_task.connect_configuration(config)
     else:
         clearml_task=0
 
@@ -111,10 +113,10 @@ def main(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classifier Trainer')
-    parser.add_argument('--config', type=str, default='config.yaml', help='Path to the configuration file')
-
+    parser.add_argument('--config', type=str, default='classifier_config.yaml', help='Path to the configuration file')
     args = parser.parse_args()
-
     config = load_config(args.config)
-    main(config)
+    # exp_name = 'Classifier_6_seconds_no_synthetic_data'
+    exp_name = None
+    main(config, exp_name)
 

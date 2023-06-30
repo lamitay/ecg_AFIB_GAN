@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from seq_models import MinibatchDiscrimination
 from torchgan.layers import MinibatchDiscrimination1d
+
+
 class Generator(nn.Module):
     def __init__(self, input_noise_size=100, out_signal_length=1500, num_layers=1):
         super(Generator, self).__init__()

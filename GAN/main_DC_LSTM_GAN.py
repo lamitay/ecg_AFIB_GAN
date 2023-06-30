@@ -138,5 +138,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config = load_config(args.config)
     # exp_name = 'DC_LSTM_GAN_lr_1e-4'
-    main(config)
+    exp_name = None
+    main(config, exp_name)
 
