@@ -427,6 +427,19 @@ def report_df_to_clearml(df, clearml_task, d_type=None):
     )
 
 
+def get_column_stats(curr_df, col_name):
+    col_counts = curr_df[col_name].value_counts().reset_index()
+    col_counts.columns = [col_name, 'Count']
+    col_counts['Count'] = col_counts['Count'].astype(int)
+
+    col_prec = curr_df[col_name].value_counts(normalize=True).reset_index()
+    col_prec.columns = [col_name, 'Percentage']
+    col_prec['Percentage'] = col_prec['Percentage'].round(4) * 100
+
+    col_stat = pd.merge(col_counts, col_prec, on=col_name)
+
+    return col_stat
+
 
 if __name__ == '__main__':
     # Create external dataset:

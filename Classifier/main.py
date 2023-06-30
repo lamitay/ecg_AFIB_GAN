@@ -20,7 +20,7 @@ def print_dataset_distribution(dataset):
     print(f'label 1: {len(labels[labels==True])}   |   Prec: {"{:.2f}".format(len(labels[labels==True])/len(labels))}%')
 
 
-def main(config):
+def main(config, exp_name=None):
     
     # Define the experiment directories
     if config['user'] == 'Noga':
@@ -36,7 +36,8 @@ def main(config):
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
         data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
-    exp_name = f"{config['user']}_{config['experiment_name']}"
+    if exp_name is None:
+        exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
@@ -126,7 +127,8 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default='Classifier/classifier_config.yaml', help='Path to the configuration file')
 
     args = parser.parse_args()
-
     config = load_config(args.config)
-    main(config)
+    # exp_name = 'Classifier_6_seconds_no_synthetic_data'
+    exp_name = None
+    main(config, exp_name)
 
