@@ -43,8 +43,11 @@ class Trainer:
         torch.save(self.model.state_dict(), model_path)
         print(f"Saved model from Epoch: {epoch}' at {model_path}")
 
-    def load_model(self, ckpt=0):
-        model_dir = os.path.join(self.exp_dir, 'models')
+    def load_model(self, ckpt=0, different_exp_dir = None):
+        if different_exp_dir != None:
+            model_dir = os.path.join(different_exp_dir, 'models')
+        else:
+            model_dir = os.path.join(self.exp_dir, 'models')
         if ckpt:
             assert os.path.isfile(ckpt), f"Checkpoint '{ckpt}' not found."
             model_path = ckpt
@@ -116,12 +119,12 @@ class Trainer:
 
 
 
-    def evaluate(self, data_type, epoch=0, ckpt=None):
+    def evaluate(self, data_type, epoch=0, ckpt=None, different_exp_dir = None):
         if data_type == 'validation':
             loader = self.validation_loader
         elif data_type == 'test':
             loader = self.test_loader
-            self.load_model(ckpt)
+            self.load_model(ckpt, different_exp_dir)
         
         results_dir = os.path.join(self.exp_dir, 'results')
 

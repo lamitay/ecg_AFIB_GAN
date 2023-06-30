@@ -14,6 +14,11 @@ from dataset import *
 from transform import Normalize
 import random
 
+def print_dataset_distribution(dataset):
+    labels = dataset.meta_data['label']
+    print(f'label 0: {len(labels[labels==False])}   |   Prec: {"{:.2f}".format(len(labels[labels==False])/len(labels))}%') 
+    print(f'label 1: {len(labels[labels==True])}   |   Prec: {"{:.2f}".format(len(labels[labels==True])/len(labels))}%')
+
 
 def main(config):
     
@@ -36,6 +41,7 @@ def main(config):
     
     if config['clearml']:
         clearml_task = Task.init(project_name="ecg_AFIB_GAN", task_name=exp_name)
+        clearml_task.connect_configuration(config)
     else:
         clearml_task=0
 
@@ -44,7 +50,7 @@ def main(config):
 
     # Data
     record_names = get_record_names_from_folder(records_folder_path)
-    train_records_names, validation_records_names, test_records_names = split_records_train_val_test(record_names, config['train_prec'])
+    train_records_names, validation_records_names, test_records_names = split_records_according_to_class_dis(data_folder_path, wanted_ratio = 0.3, train_prec=config['train_prec'])
 
     # Datasets and Dataloaders
     num_workers = 4
@@ -55,6 +61,8 @@ def main(config):
                                transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                                config=config, 
                                d_type='Train')
+    print('class distribution for the train_dataset')
+    print_dataset_distribution(train_dataset)
     train_loader = DataLoader(train_dataset, 
                               batch_size=config['batch_size'], 
                               shuffle=True, 
@@ -67,6 +75,8 @@ def main(config):
                                     transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                                     config=config, 
                                     d_type='Validation')
+    print('class distribution for the validation_dataset')
+    print_dataset_distribution(validation_dataset)
     validation_loader = DataLoader(validation_dataset, 
                                    batch_size=config['batch_size'], 
                                    shuffle=False, 
@@ -79,6 +89,8 @@ def main(config):
                               transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                               config=config, 
                               d_type='Test')
+    print('class distribution for the test_dataset')
+    print_dataset_distribution(test_dataset)
     test_loader = DataLoader(test_dataset, 
                              batch_size=config['batch_size'], 
                              shuffle=False,  
@@ -111,7 +123,7 @@ def main(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classifier Trainer')
-    parser.add_argument('--config', type=str, default='config.yaml', help='Path to the configuration file')
+    parser.add_argument('--config', type=str, default='Classifier/classifier_config.yaml', help='Path to the configuration file')
 
     args = parser.parse_args()
 

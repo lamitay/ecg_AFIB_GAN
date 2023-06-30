@@ -52,12 +52,12 @@ class GAN_Trainer:
         self.netG = generator.to(self.device)
         self.netD = discriminator.to(self.device)
         
-        self.optimizerD = Adam(self.netD.parameters(), lr=discriminator_lr)
+        self.optimizerD = Adam(self.netD.parameters(), lr=discriminator_lr, weight_decay=0.01)
         self.optimizerG = Adam(self.netG.parameters(), lr=generator_lr)
         self.with_lr_scheduler = with_lr_scheduler
         if with_lr_scheduler:
-            self.schedulerD = lr_scheduler.StepLR(self.optimizerD,  step_size=250, gamma=0.5)
-            self.schedulerG = lr_scheduler.StepLR(self.optimizerG,  step_size=250, gamma=0.5)
+            self.schedulerD = lr_scheduler.StepLR(self.optimizerD,  step_size=300, gamma=0.9)
+            self.schedulerG = lr_scheduler.StepLR(self.optimizerG,  step_size=300, gamma=0.9)
         self.criterion = nn.BCELoss()
         
         self.batch_size = batch_size
@@ -194,7 +194,7 @@ class GAN_Trainer:
 
             if epoch % 100 == 0:  
                 if epoch != 0:
-                    self.noise_std = self.noise_std*0.5 # reduce the variance of the noise that being added to the real data          
+                    self.noise_std = self.noise_std*0.9 # reduce the variance of the noise that being added to the real data          
                 print(f"Epoch: {epoch} | Loss_D: {errD_} | Loss_G: {errG_} | Mean_D_fake: {D_fake_} | Mean_D_real: {D_real_} | Time: {time.strftime('%H:%M:%S')}")
                 if self.seq_model:
                     hid = self.netG.init_hidden(self.batch_size)

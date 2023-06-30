@@ -12,8 +12,9 @@ from fvcore.nn import flop_count, FlopCountAnalysis, flop_count_table
 import pandas as pd
 from clearml import Logger
 import matplotlib.pyplot as plt
-import csv
+import pandas as pd
 import scipy
+import random
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -53,9 +54,34 @@ def get_record_names_from_folder(folder_path):
             record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
     return record_names
 
+def split_records_according_to_class_dis(data_folder_path, wanted_ratio = 0.3, train_prec=80):
+    meta_data = pd.read_csv(os.path.join(data_folder_path,'meta_data.csv'))
+    record_names = np.unique(meta_data['record_file_name']).tolist()
+
+    class_ratios = []
+    for record in record_names:
+        record_samples = meta_data[meta_data['record_file_name']==record]
+        class_ratios.append(len(record_samples[record_samples['label']==1])/len(record_samples))
+    record_df = pd.DataFrame({'record_names':record_names, 'ratio':class_ratios})
+    
+    delta = np.inf
+    count = 0
+    while delta > 0.07:
+        record_names = list(record_df['record_names'])
+        random.shuffle(record_names)
+        train_records_names, val_records_names, test_records_names = split_records_train_val_test(record_names, train_prec)
+        delta_train = np.abs(wanted_ratio - record_df[record_df['record_names'].isin(train_records_names)]['ratio'].mean())
+        delta_val = np.abs(wanted_ratio - record_df[record_df['record_names'].isin(val_records_names)]['ratio'].mean())
+        delta_test = np.abs(wanted_ratio - record_df[record_df['record_names'].isin(test_records_names)]['ratio'].mean())
+        delta = (delta_train + delta_val + delta_test)/3
+        count += 1
+
+    print(f"Training set: {len(train_records_names)} records\nValidation set: {len(val_records_names)} records\nTest set: {len(test_records_names)} records")
+
+    return train_records_names, val_records_names, test_records_names
+    
 
 def split_records_train_val_test(record_names, train_prec=80):
-    #split records to training and test to 80% - 20%
     num_of_train_val_records = round(len(record_names)*(train_prec/100))
     train_val_records_names = record_names[:num_of_train_val_records]
     test_records_names = record_names[num_of_train_val_records:]
@@ -63,7 +89,6 @@ def split_records_train_val_test(record_names, train_prec=80):
     num_of_train_records = round(len(train_val_records_names)*(train_prec/100))
     train_records_names = train_val_records_names[:num_of_train_records]
     val_records_names = train_val_records_names[num_of_train_records:]
-    print(f"Training set: {len(train_records_names)} records\nValidation set: {len(val_records_names)} records\nTest set: {len(test_records_names)} records")
     
     return train_records_names, val_records_names, test_records_names
 

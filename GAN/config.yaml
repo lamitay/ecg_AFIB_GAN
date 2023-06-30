@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_3layersLSTM_1000epochs_lr_schedular'
+experiment_name: 'seqGAN_3layersLSTM_3000epochs_slower_noise_decay'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -12,8 +12,8 @@ bsqi_th: 0.95
 clearml: True
 
 # Trainer configs
-train_prec: 60
-batch_size: 256
+train_prec: 80
+batch_size: 512
 lr: 0.00001
 loss: 'binary_cross_entropy'
 optimizer: 'AdamW'
@@ -30,7 +30,7 @@ fs: 250
 overlap: 0
 
 # GAN configs
-GAN_epochs: 1000
+GAN_epochs: 3000
 GAN_batch_size: 512
 GAN_label: 1
 noise_size : 100
