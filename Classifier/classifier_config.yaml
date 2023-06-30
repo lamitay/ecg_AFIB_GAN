@@ -28,6 +28,7 @@ classifier_th: 0.75
 sample_length: 6
 fs: 250
 overlap: 0
+fake_prec: 100
 
 # GAN configs
 GAN_epochs: 500

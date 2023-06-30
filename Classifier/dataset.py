@@ -47,10 +47,13 @@ class AF_dataset(Dataset):
                 debug_size = int(config['debug_ratio'] * orig_size)
                 self.meta_data = self.meta_data.sample(n=debug_size)
                 print(f'debug mode, squeeze {d_type} data from {orig_size} to {debug_size}')
+
             if exp_dir:
                 self.meta_data.to_csv(os.path.join(exp_dir,'dataframes', d_type+'_df.csv'), index=False)
+
             if clearml_task:
                 report_df_to_clearml(self.meta_data, clearml_task, d_type)
+
             print('--------------------------------------------------------------')
 
     def __len__(self):
@@ -59,6 +62,67 @@ class AF_dataset(Dataset):
     def __getitem__(self, index):
         signal_path = self.meta_data.iloc[index]['interval_path']
         signal = np.load(os.path.join(self.folder_path,'intervals',signal_path))
+        label = self.meta_data.iloc[index]['label']
+        meta_data = self.meta_data.iloc[index]    
+        signal = signal.reshape((1, len(signal)))
+        if self.transform:
+            signal = self.transform(signal)
+
+        return (signal, label), meta_data.to_dict()
+    
+
+class AF_mixed_dataset(Dataset):
+    def __init__(self, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, config=None, d_type='No data type specified'):
+        super().__init__()
+
+        self.transform = transform
+        self.real_data_path = real_data_folder_path
+        self.fake_data_path = fake_data_folder_path
+
+        # Load real and fake data csv file from dataset folder:
+        real_df = pd.read_csv(os.path.join(self.real_data_path, d_type + '_df.csv'))
+        real_df = drop_unnamed_columns(real_df)
+
+        fake_df = pd.read_csv(os.path.join(self.fake_data_path, d_type + '_df.csv'))
+        fake_df = drop_unnamed_columns(fake_df)
+        if isinstance(config['fake_prec'], int):
+            fake_df = fake_df.sample(n=int(config['fake_prec'] * len(fake_df)))
+
+        # Add a 'fake' column to the real and fake DataFrames
+        real_df['fake'] = 0
+        fake_df['fake'] = 1
+        
+        # Concatenate the real and fake DataFrames
+        self.meta_data = pd.concat([real_df, fake_df], ignore_index=True)
+
+        label_stat = get_column_stats(self.meta_data, 'label')
+        fake_stat = get_column_stats(self.meta_data, 'fake')
+
+        print('--------------------------------------------------------------')
+        print(f'created mixed {d_type} dataset with {len(self.meta_data)} intervals')
+        print("\nLabel distribution:\n", label_stat)
+        print("\nFake distribution:\n", fake_stat)
+        print('--------------------------------------------------------------')
+
+        if exp_dir:
+            self.meta_data.to_csv(os.path.join(exp_dir,'dataframes', d_type+'_df.csv'), index=False)
+
+        if clearml_task:
+            report_df_to_clearml(self.meta_data, clearml_task, d_type)
+            report_df_to_clearml(label_stat, clearml_task, d_type)
+            report_df_to_clearml(fake_stat, clearml_task, d_type)
+            
+
+    def __len__(self):
+        return len(self.meta_data)
+    
+    def __getitem__(self, index):
+        signal_path = self.meta_data.iloc[index]['interval_path']
+        if self.meta_data.iloc[index]['fake']:
+            folder_path = self.fake_data_path
+        else:
+            folder_path = self.real_data_path
+        signal = np.load(os.path.join(folder_path,'intervals',signal_path))
         label = self.meta_data.iloc[index]['label']
         meta_data = self.meta_data.iloc[index]    
         signal = signal.reshape((1, len(signal)))
