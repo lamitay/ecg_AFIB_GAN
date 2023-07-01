@@ -13,6 +13,10 @@ from model import EcgResNet34
 from dataset import *
 from transform import Normalize
 import random
+from sklearn.decomposition import PCA
+import plotly.express as px
+import plotly.io as pio
+from tqdm import tqdm
 
 
 def main(config, exp_name=None):
@@ -32,7 +36,7 @@ def main(config, exp_name=None):
         data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
     if exp_name is None:
-        exp_name = f"{config['user']}_{config['experiment_name']}_{config['fake_prec']}_fake_percent"
+        exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
@@ -95,22 +99,95 @@ def main(config, exp_name=None):
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
-    print_model_summary(model, config['batch_size'], device='cpu')
     model.to(device)
-    if config['optimizer'] == 'AdamW':
-        optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
-    if config['loss'] == 'binary_cross_entropy':    
-        criterion = F.binary_cross_entropy
-    if config['lr_scheduler'] == 'ReduceLROnPlateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, verbose=True)
+
+    # Create directory to save results
+    embeddings_dir = os.path.join(exp_dir, 'embedding_results')
+    os.makedirs(embeddings_dir, exist_ok=True)
+
+    ckpt = config['ckpt_for_inference']
+    model.load_state_dict(torch.load(ckpt))
+
+    # Get embeddings
+    embeddings = []
+    labels = []
+    preds = []
+    fakes = []
+    intervals = []
+
+    with torch.no_grad():
+        for (inputs, targets), meta_data in tqdm(train_loader):
+            inputs = inputs.to(device).squeeze(1)
+            targets = targets.to(device).float()
+
+            embedding = model(inputs, return_embedding=True)
+            outputs = model(inputs).squeeze(1)
+            
+            # Threshold the predictions
+            thresholded_predictions = np.where(outputs.cpu().numpy() >= config['classifier_th'], 1, 0)        
+
+            embeddings.append(embedding.cpu().numpy())
+            labels.append(targets.cpu().numpy())
+            preds.append(thresholded_predictions.astype(int))
+            fakes.append(meta_data['fake'])
+            intervals.append(meta_data['interval_path'])
+
+    embeddings = np.concatenate(embeddings)
+    labels = np.concatenate(labels)
+    preds = np.concatenate(preds)
+    fakes = np.concatenate(fakes)
+    intervals = np.concatenate(intervals)
+
+    # Save the embeddings
+    np.save(os.path.join(embeddings_dir, 'embeddings.npy'), embeddings)
+
+    # Reduce dimensionality
+    pca = PCA(n_components=2)
+    embeddings_reduced = pca.fit_transform(embeddings)
+
+    # Save the reduced embeddings
+    np.save(os.path.join(embeddings_dir, 'embeddings_reduced.npy'), embeddings_reduced)
+
+    # Create a DataFrame
+    df = pd.DataFrame(embeddings_reduced, columns=['component1', 'component2'])
+    df['label'] = labels
+    df['prediction'] = preds
+    df['fake'] = fakes
+    df['interval_path'] = intervals
+
+    # Save the DataFrame
+    df.to_csv(os.path.join(embeddings_dir, 'embeddings_plotly.csv'), index=False)
+
+    # Plot
+    fig1 = px.scatter(df, x='component1', y='component2',
+                    symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                    color='label',  # Coloring according to the label values
+                    hover_data=['label', 'prediction', 'fake', 'interval_path'])
+
+    # Save the figure as an HTML file
+    pio.write_html(fig1, os.path.join(embeddings_dir, 'label_embeddings_pca_2d.html'))
     
-    # Training
-    trainer = Trainer(model, exp_dir, train_loader, validation_loader, test_loader, optimizer, criterion, scheduler, device, config, clearml_task, data_folder_path)
-    print('Started training!')
-    trainer.train()
-    print('Finished training, Started test set evaluation!')
-    trainer.evaluate(data_type='test')
-    print('Finished experiment!')
+    # report the plotly figure
+    clearml_task.get_logger().report_plotly(
+    title="Classifier Embeddings - Labels", series="Labels", iteration=0, figure=fig1
+    )
+
+    # fig1.show()
+    
+    fig2 = px.scatter(df, x='component1', y='component2',
+                    symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                    color='fake',  # Coloring according to the label values
+                    hover_data=['label', 'prediction', 'fake', 'interval_path'])
+
+    # Save the figure as an HTML file
+    pio.write_html(fig2, os.path.join(embeddings_dir, 'fake_embeddings_pca_2d.html'))
+    
+    # report the plotly figure
+    clearml_task.get_logger().report_plotly(
+    title="Classifier Embeddings - Fake", series="Fake vs. Real", iteration=0, figure=fig2
+    )
+
+    # fig2.show()
 
 
 if __name__ == '__main__':
@@ -118,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default='Classifier/classifier_config.yaml', help='Path to the configuration file')    
     args = parser.parse_args()
     config = load_config(args.config)
-    exp_name = 'Classifier_mixed_data_10k_fake_samples_gen2'
+    exp_name = 'baseline_classifier_training_embeddings_10k_fake_samples_gen2'
     # exp_name = None
     main(config, exp_name)
 

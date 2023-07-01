@@ -371,7 +371,7 @@ class EcgResNet34(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, return_embedding=False):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -383,6 +383,10 @@ class EcgResNet34(nn.Module):
 
         x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
+
+        if return_embedding:
+            return x
+        
         x = self.fc(x)
         x = nn.Sigmoid()(x)
 
