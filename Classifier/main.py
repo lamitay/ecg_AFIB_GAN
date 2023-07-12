@@ -51,7 +51,7 @@ def main(config, exp_name=None):
 
     # Data
     record_names = get_record_names_from_folder(records_folder_path)
-    train_records_names, validation_records_names, test_records_names = split_records_according_to_class_dis(data_folder_path, wanted_ratio = 0.3, train_prec=config['train_prec'])
+    train_records_names, validation_records_names, test_records_names = split_records_train_val_test(record_names, train_prec=config['train_prec'])
 
     # Datasets and Dataloaders
     num_workers = 4
@@ -61,7 +61,8 @@ def main(config, exp_name=None):
                                record_names= train_records_names, 
                                transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                                config=config, 
-                               d_type='Train')
+                               d_type='Train',
+                               negative_class_prec = 0.8)
     print('class distribution for the train_dataset')
     print_dataset_distribution(train_dataset)
     train_loader = DataLoader(train_dataset, 
@@ -75,7 +76,8 @@ def main(config, exp_name=None):
                                     record_names= validation_records_names, 
                                     transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                                     config=config, 
-                                    d_type='Validation')
+                                    d_type='Validation',
+                                    negative_class_prec = 0.8)
     print('class distribution for the validation_dataset')
     print_dataset_distribution(validation_dataset)
     validation_loader = DataLoader(validation_dataset, 
@@ -89,7 +91,8 @@ def main(config, exp_name=None):
                               record_names= test_records_names, 
                               transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                               config=config, 
-                              d_type='Test')
+                              d_type='Test',
+                            negative_class_prec = 0.8)
     print('class distribution for the test_dataset')
     print_dataset_distribution(test_dataset)
     test_loader = DataLoader(test_dataset, 

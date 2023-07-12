@@ -2,14 +2,14 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'external_dataset_evaluation'
+experiment_name: 'classifier_train_on_dataset_with_80%_normal_intervals'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
 bsqi_th: 0.925
 
 # ClearML configs
-clearml: False
+clearml: True
 
 # Trainer configs
 train_prec: 80

@@ -9,7 +9,7 @@ debug_epochs: 3
 bsqi_th: 0.95
 
 # ClearML configs
-clearml: True
+clearml: False
 
 # Trainer configs
 train_prec: 80

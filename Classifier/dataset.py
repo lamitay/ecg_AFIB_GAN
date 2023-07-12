@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import wfdb
 import os
+import sys
+sys.path.append('Classifier')
 os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
 from clearml import Logger
 import matplotlib.pyplot as plt 
@@ -13,7 +15,16 @@ import random
 
 
 class AF_dataset(Dataset):
-    def __init__(self, dataset_folder_path, record_names, clearml_task = False,exp_dir = None, transform = False, config=None, d_type='No data type specified', GAN_label=-1):
+    def __init__(self, 
+                 dataset_folder_path, 
+                 record_names, 
+                 clearml_task = False,
+                 exp_dir = None, 
+                 transform = False, 
+                 config=None, 
+                 d_type='No data type specified', 
+                 GAN_label=-1,
+                 negative_class_prec = None):
         super().__init__()
 
         self.transform = transform
@@ -21,7 +32,8 @@ class AF_dataset(Dataset):
         # Load meta data csv file from dataset folder:
         meta_data = pd.read_csv(os.path.join(dataset_folder_path,'meta_data.csv')) 
         meta_data = drop_unnamed_columns(meta_data)
-        record_names = [name for name in record_names]
+        if not record_names[0].endswith('.dat'):
+            record_names = [name + '.dat' for name in record_names]
         self.meta_data = meta_data[meta_data['record_file_name'].isin(record_names)]
         print('--------------------------------------------------------------')
         print(f'created {d_type} dataset with {len(self.meta_data)} intervals')
@@ -40,6 +52,26 @@ class AF_dataset(Dataset):
                 print(f'Using bsqi scores to filter {d_type} dataset with threshold of {data_quality_thr}')
                 print(f"bsqi filtered {d_type} from {pre_bsqi_size} to {len(self.meta_data)}") 
                 assert len(self.meta_data) > 0 ,'The bsqi filtering filtered all the samples, please choose a lower threshold and run again'
+
+            if negative_class_prec:
+                num_negative_class_intervals = sum(self.meta_data['label']==0.)
+                num_positive_class_intervals = sum(self.meta_data['label']==1.)
+                
+                num_wanted_positive_class_intervals = (1/negative_class_prec)*num_negative_class_intervals - num_negative_class_intervals
+                if num_positive_class_intervals > num_wanted_positive_class_intervals:
+                     # if the number of positive samples is smaller the the wanted number of positive samples, do not filter!
+                    pos_indices = np.where(self.meta_data['label']==1.)[0]
+                    pos_indices_to_remove = random.sample(pos_indices.tolist(), int(num_positive_class_intervals - num_wanted_positive_class_intervals))
+                    pos_indices_to_remove = [self.meta_data.index[i] for i in pos_indices_to_remove]
+                    self.meta_data = self.meta_data.drop(pos_indices_to_remove)
+                else:
+                    num_wanted_negative_class_intervals = (1/(1-negative_class_prec))*num_positive_class_intervals - num_positive_class_intervals
+                    neg_indices = np.where(self.meta_data['label']==0.)[0]
+                    neg_indices_to_remove = random.sample(neg_indices.tolist(), int(num_negative_class_intervals - num_wanted_negative_class_intervals))
+                    neg_indices_to_remove = [self.meta_data.index[i] for i in neg_indices_to_remove]
+                    self.meta_data = self.meta_data.drop(neg_indices_to_remove)
+
+
 
 
             if config['debug']:
