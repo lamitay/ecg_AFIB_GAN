@@ -416,12 +416,17 @@ def drop_unnamed_columns(df):
     return df    
 
 
-def report_df_to_clearml(df, clearml_task, d_type=None):
+def report_df_to_clearml(df, clearml_task, d_type=None, title=None):
     logger = clearml_task.get_logger()
     df.index.name = "id"
+    if title is None:
+        title = f"{d_type}_data_table"
+        sub_title = "Final data files"
+    else:
+        sub_title = title
     logger.report_table(
-        f"{d_type}_data_table", 
-        "Final data files", 
+        f"{d_type}_{title}",
+        sub_title, 
         iteration=0, 
         table_plot=df
     )
@@ -439,6 +444,11 @@ def get_column_stats(curr_df, col_name):
     col_stat = pd.merge(col_counts, col_prec, on=col_name)
 
     return col_stat
+
+def print_dataset_distribution(dataset):
+    labels = dataset.meta_data['label']
+    print(f'label 0: {len(labels[labels==False])}   |   Prec: {"{:.2f}".format(len(labels[labels==False])/len(labels))}%') 
+    print(f'label 1: {len(labels[labels==True])}   |   Prec: {"{:.2f}".format(len(labels[labels==True])/len(labels))}%')
 
 
 if __name__ == '__main__':

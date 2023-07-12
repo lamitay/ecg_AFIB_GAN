@@ -20,7 +20,7 @@ def generate_and_save_data(gan_model='seq', model_path=None, base_output_dir=Non
     batch_size = 1
     
     # Create directories
-    exp_name = f'fake_data_6_secs_{fake_amount}_samples'
+    exp_name = f'fake_data_6_secs_{fake_amount}_samples_gen2'
     output_dir = os.path.join(base_output_dir, exp_name)
     intervals_dir = os.path.join(output_dir, 'intervals')
     images_dir = os.path.join(output_dir, 'images')
@@ -86,9 +86,10 @@ def generate_and_save_data(gan_model='seq', model_path=None, base_output_dir=Non
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate fake data using a GAN model.')
     parser.add_argument('--gan_model', type=str, default='seq', help='The GAN model to use for generating data.')
-    parser.add_argument('--model_path', type=str, default='/tcmldrive/NogaK/ECG_classification/experiments/tcml_seqGAN_3layersLSTM_1000epochs_more_dropout_in_dis_20230628_15_33_53/models/epoch_999_generator_model.pth', help='The directory where the GAN model is stored.')
+    # parser.add_argument('--model_path', type=str, default='/tcmldrive/NogaK/ECG_classification/experiments/tcml_seqGAN_3layersLSTM_1000epochs_more_dropout_in_dis_20230628_15_33_53/models/epoch_999_generator_model.pth', help='The directory where the GAN model is stored.')
+    parser.add_argument('--model_path', type=str, default='/tcmldrive/NogaK/ECG_classification/experiments/tcml_seqGAN_3layersLSTM_1000epochs_lr_schedular_20230629_12_39_54/models/epoch_999_generator_model.pth', help='The directory where the GAN model is stored.')
     parser.add_argument('--base_output_dir', type=str, default='/tcmldrive/NogaK/ECG_classification/data/', help='The base directory to output the generated data.')
-    parser.add_argument('--fake_amount', type=int, default=100, help='The amount of fake data to generate.')
+    parser.add_argument('--fake_amount', type=int, default=50000, help='The amount of fake data to generate.')
     args = parser.parse_args()
     
     generate_and_save_data(args.gan_model, args.model_path, args.base_output_dir, args.fake_amount)

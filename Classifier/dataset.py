@@ -112,20 +112,31 @@ class AF_mixed_dataset(Dataset):
         self.fake_data_path = fake_data_folder_path
 
         # Load real and fake data csv file from dataset folder:
-        real_df = pd.read_csv(os.path.join(self.real_data_path, d_type + '_df.csv'))
+        real_df = pd.read_csv(os.path.join(config['real_data_df_path'], d_type + '_df.csv'))
         real_df = drop_unnamed_columns(real_df)
-
-        fake_df = pd.read_csv(os.path.join(self.fake_data_path, d_type + '_df.csv'))
-        fake_df = drop_unnamed_columns(fake_df)
-        if isinstance(config['fake_prec'], int):
-            fake_df = fake_df.sample(n=int(config['fake_prec'] * len(fake_df)))
-
-        # Add a 'fake' column to the real and fake DataFrames
         real_df['fake'] = 0
-        fake_df['fake'] = 1
+
+        # Add fake data only to training set
+        if d_type == 'Train':
+            fake_df = pd.read_csv(os.path.join(self.fake_data_path, 'meta_data.csv'))
+            fake_df = drop_unnamed_columns(fake_df)
+            if isinstance(config['fake_prec'], int):
+                fake_df = fake_df.sample(n=int((config['fake_prec']/100) * len(fake_df)))
+            fake_df['fake'] = 1
+            
+            # Concatenate the real and fake DataFrames
+            self.meta_data = pd.concat([real_df, fake_df], ignore_index=True)
         
-        # Concatenate the real and fake DataFrames
-        self.meta_data = pd.concat([real_df, fake_df], ignore_index=True)
+        else:
+            self.meta_data = real_df.copy()
+
+
+        if config['debug']:
+                orig_size = len(self.meta_data)
+                debug_size = int(config['debug_ratio'] * orig_size)
+                self.meta_data = self.meta_data.sample(n=debug_size)
+                print(f'debug mode, squeeze {d_type} data from {orig_size} to {debug_size}')
+
 
         label_stat = get_column_stats(self.meta_data, 'label')
         fake_stat = get_column_stats(self.meta_data, 'fake')
@@ -141,8 +152,8 @@ class AF_mixed_dataset(Dataset):
 
         if clearml_task:
             report_df_to_clearml(self.meta_data, clearml_task, d_type)
-            report_df_to_clearml(label_stat, clearml_task, d_type)
-            report_df_to_clearml(fake_stat, clearml_task, d_type)
+            report_df_to_clearml(label_stat, clearml_task, d_type, title='label_stats')
+            report_df_to_clearml(fake_stat, clearml_task, d_type,  title='fake_stats')
             
 
     def __len__(self):
@@ -157,7 +168,7 @@ class AF_mixed_dataset(Dataset):
         signal = np.load(os.path.join(folder_path,'intervals',signal_path))
         label = self.meta_data.iloc[index]['label']
         meta_data = self.meta_data.iloc[index]    
-        signal = signal.reshape((1, len(signal)))
+        signal = signal.reshape((1, signal.size))
         if self.transform:
             signal = self.transform(signal)
 
