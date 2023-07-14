@@ -92,7 +92,7 @@ def main(config, exp_name=None, train_fake_perc=10):
     # Model and optimizers config
     model = EcgResNet34(num_classes=1, layers=(1, 1, 1, 1))
     if config['user'] == 'Noga' or config['user'] == 'tcml':
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
