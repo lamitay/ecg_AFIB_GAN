@@ -104,7 +104,7 @@ class AF_dataset(Dataset):
     
 
 class AF_mixed_dataset(Dataset):
-    def __init__(self, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, config=None, d_type='No data type specified'):
+    def __init__(self, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, config=None, d_type='No data type specified', train_fake_perc=0):
         super().__init__()
 
         self.transform = transform
@@ -115,17 +115,23 @@ class AF_mixed_dataset(Dataset):
         real_df = pd.read_csv(os.path.join(config['real_data_df_path'], d_type + '_df.csv'))
         real_df = drop_unnamed_columns(real_df)
         real_df['fake'] = 0
-
+        
         # Add fake data only to training set
         if d_type == 'Train':
             fake_df = pd.read_csv(os.path.join(self.fake_data_path, 'meta_data.csv'))
             fake_df = drop_unnamed_columns(fake_df)
-            if isinstance(config['fake_prec'], int):
-                fake_df = fake_df.sample(n=int((config['fake_prec']/100) * len(fake_df)))
             fake_df['fake'] = 1
+
+            # Split the training data into different amounts of real vs fake
+            tot_pathology_train_amount = len(real_df[real_df['label']==1])
+            real_pathology_amount = int(((100 - train_fake_perc) / 100) * tot_pathology_train_amount)
+            fake__pathology_amount = int((train_fake_perc / 100) * tot_pathology_train_amount)
+            real_normal_df = real_df[real_df['label']==0]
+            real_pathology_df = real_df[real_df['label']==1].sample(n=real_pathology_amount)
+            fake_df = fake_df.sample(n=fake__pathology_amount) 
             
             # Concatenate the real and fake DataFrames
-            self.meta_data = pd.concat([real_df, fake_df], ignore_index=True)
+            self.meta_data = pd.concat([real_normal_df, real_pathology_df, fake_df], ignore_index=True)
         
         else:
             self.meta_data = real_df.copy()
