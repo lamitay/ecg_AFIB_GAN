@@ -15,6 +15,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scipy
 import random
+import glob
+from sklearn.decomposition import PCA
+import plotly.express as px
+import plotly.io as pio
+from matplotlib import pyplot as plt
+from sklearn.manifold import TSNE
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -449,6 +455,136 @@ def print_dataset_distribution(dataset):
     labels = dataset.meta_data['label']
     print(f'label 0: {len(labels[labels==False])}   |   Prec: {"{:.2f}".format(len(labels[labels==False])/len(labels))}%') 
     print(f'label 1: {len(labels[labels==True])}   |   Prec: {"{:.2f}".format(len(labels[labels==True])/len(labels))}%')
+
+
+def load_latest_model(model, path):
+    list_of_files = glob.glob(os.path.join(path, 'epoch_*_model.pth')) 
+    latest_file = max(list_of_files, key=os.path.getctime)
+    print(f"Loading model: {latest_file}")
+    model.load_state_dict(torch.load(latest_file))
+    return model
+
+
+def create_and_save_embeddings(model, data_loader, embeddings_dir, d_type, exp_path):
+    # Get embeddings
+    embeddings = []
+    labels = []
+    preds = []
+    fakes = []
+    intervals = []
+
+    with torch.no_grad():
+        for (inputs, targets), meta_data in tqdm(data_loader):
+            inputs = inputs.to(device).squeeze(1)
+            targets = targets.to(device).float()
+
+            embedding = model(inputs, return_embedding=True)
+            outputs = model(inputs).squeeze(1)
+            
+            # Threshold the predictions
+            thresholded_predictions = np.where(outputs.cpu().numpy() >= config['classifier_th'], 1, 0)        
+
+            embeddings.append(embedding.cpu().numpy())
+            labels.append(targets.cpu().numpy())
+            preds.append(thresholded_predictions.astype(int))
+            fakes.append(meta_data['fake'])
+            intervals.append(meta_data['interval_path'])
+
+    embeddings = np.concatenate(embeddings)
+    labels = np.concatenate(labels)
+    preds = np.concatenate(preds)
+    fakes = np.concatenate(fakes)
+    intervals = np.concatenate(intervals)
+
+    # Save the embeddings
+    np.save(os.path.join(embeddings_dir, 'embeddings.npy'), embeddings)
+
+    # Reduce dimensionality
+    pca = PCA(n_components=2)
+    embeddings_reduced = pca.fit_transform(embeddings)
+
+    # Save the reduced embeddings
+    np.save(os.path.join(embeddings_dir, 'embeddings_reduced.npy'), embeddings_reduced)
+
+    # Reduce dimensionality with t-SNE
+    tsne = TSNE(n_components=2)
+    embeddings_reduced_tsne = tsne.fit_transform(embeddings)
+
+    # Save the reduced embeddings with t-SNE
+    np.save(os.path.join(embeddings_dir, 'embeddings_reduced_tsne.npy'), embeddings_reduced_tsne)
+
+    # Create a DataFrame
+    df = pd.DataFrame(embeddings_reduced, columns=['component1', 'component2'])
+    df['label'] = labels
+    df['prediction'] = preds
+    df['fake'] = fakes
+    df['interval_path'] = intervals
+
+    # Save the DataFrame
+    df.to_csv(os.path.join(embeddings_dir, 'embeddings_plotly.csv'), index=False)
+
+    # Plot
+    fig1 = px.scatter(df, x='component1', y='component2',
+                      symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                      color='label',  # Coloring according to the label values
+                      hover_data=['label', 'prediction', 'fake', 'interval_path'])
+
+    # Save the figure as an HTML file
+    pio.write_html(fig1, os.path.join(embeddings_dir, f'label_embeddings_{d_type}_pca_2d.html'))
+
+    if d_type != "Test":
+        fig2 = px.scatter(df, x='component1', y='component2',
+                          symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                          color='fake',  # Coloring according to the label values
+                          hover_data=['label', 'prediction', 'fake', 'interval_path'])
+
+        # Save the figure as an HTML file
+        pio.write_html(fig2, os.path.join(embeddings_dir, f'fake_embeddings_{d_type}_pca_2d.html'))
+        
+        # Save figures as png
+        fig1.write_image(os.path.join(embeddings_dir, f'label_embeddings_{d_type}_pca_2d.png'))
+        fig2.write_image(os.path.join(embeddings_dir, f'fake_embeddings_{d_type}_pca_2d.png'))
+
+    # Repeat the process for t-SNE reduced data
+    df_tsne = pd.DataFrame(embeddings_reduced_tsne, columns=['component1', 'component2'])
+    df_tsne['label'] = labels
+    df_tsne['prediction'] = preds
+    df_tsne['fake'] = fakes
+    df_tsne['interval_path'] = intervals
+
+    fig3 = px.scatter(df_tsne, x='component1', y='component2',
+                      symbol=df_tsne['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                      color='label',  # Coloring according to the label values
+                      hover_data=['label', 'prediction', 'fake', 'interval_path'])
+
+    pio.write_html(fig3, os.path.join(embeddings_dir, f'label_embeddings_{d_type}_tsne_2d.html'))
+
+    if d_type != "Test":
+        fig4 = px.scatter(df_tsne, x='component1', y='component2',
+                          symbol=df_tsne['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                          color='fake',  # Coloring according to the label values
+                          hover_data=['label', 'prediction', 'fake', 'interval_path'])
+
+        pio.write_html(fig4, os.path.join(embeddings_dir, f'fake_embeddings_{d_type}_tsne_2d.html'))
+
+        # Save figures as png
+        fig3.write_image(os.path.join(embeddings_dir, f'label_embeddings_{d_type}_tsne_2d.png'))
+        fig4.write_image(os.path.join(embeddings_dir, f'fake_embeddings_{d_type}_tsne_2d.png'))
+
+# Then in your main function:
+def main(args):
+    # (...)
+    for exp in experiments:
+        # (...)
+        model = EcgResNet34(num_classes=1, layers=(1, 1, 1, 1))
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
+
+        # Load the saved model
+        model = load_latest_model(model, curr_exp_path)
+        
+        create_and_save_embeddings(model, train_loader, embeddings_dir, 'Train', curr_exp_path)
+        create_and_save_embeddings(model, test_loader, embeddings_dir, 'Test', curr_exp_path)
 
 
 if __name__ == '__main__':

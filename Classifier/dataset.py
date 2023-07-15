@@ -181,6 +181,52 @@ class AF_mixed_dataset(Dataset):
         return (signal, label), meta_data.to_dict()
 
 
+class AF_mixed_dataset_from_df(Dataset):
+    def __init__(self, meta_data_df, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, d_type='No data type specified'):
+        super().__init__()
+
+        self.transform = transform
+        self.real_data_path = real_data_folder_path
+        self.fake_data_path = fake_data_folder_path
+
+        # Use the provided DataFrame that holds the metadata of a dataset created by AF_mixed_dataset experiment
+        self.meta_data = meta_data_df.copy()
+
+        label_stat = get_column_stats(self.meta_data, 'label')
+        fake_stat = get_column_stats(self.meta_data, 'fake')
+
+        print('--------------------------------------------------------------')
+        print(f'Read mixed {d_type} dataset with {len(self.meta_data)} intervals')
+        print("\nLabel distribution:\n", label_stat)
+        print("\nFake distribution:\n", fake_stat)
+        print('--------------------------------------------------------------')
+
+        if clearml_task:
+            report_df_to_clearml(self.meta_data, clearml_task, d_type)
+            report_df_to_clearml(label_stat, clearml_task, d_type, title='label_stats')
+            report_df_to_clearml(fake_stat, clearml_task, d_type,  title='fake_stats')
+
+
+    def __len__(self):
+        return len(self.meta_data)
+
+
+    def __getitem__(self, index):
+        signal_path = self.meta_data.iloc[index]['interval_path']
+        if self.meta_data.iloc[index]['fake']:
+            folder_path = self.fake_data_path
+        else:
+            folder_path = self.real_data_path
+        signal = np.load(os.path.join(folder_path,'intervals',signal_path))
+        label = self.meta_data.iloc[index]['label']
+        meta_data = self.meta_data.iloc[index]    
+        signal = signal.reshape((1, signal.size))
+        if self.transform:
+            signal = self.transform(signal)
+
+        return (signal, label), meta_data.to_dict()
+
+
 if __name__ == '__main__':
     folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/dataset_len30_overlab5_chan0/'
     record_names = []
