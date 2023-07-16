@@ -18,18 +18,14 @@ from torch.utils.data import DataLoader
 
 def main(args):
     experiments_dir = args.experiments_dir
-    output_dir = args.output_dir
     real_data_folder_path = args.real_data_folder_path
     fake_data_folder_path = args.fake_data_folder_path
     batch_size = args.batch_size
 
-    output_dir_path = os.path.join(experiments_dir, output_dir)
-
-    os.makedirs(output_dir_path, exist_ok=True)
-
     experiments = [exp for exp in os.listdir(experiments_dir) if exp.startswith('tcml_Classifier_mixed_data_gen2_')]
+    experiments.sort(key=extract_percentage)
 
-    for exp in experiments:
+    for exp in tqdm(experiments, desc="Processing experiments"):
         # For each experiment, we want to draw embeddings of training and test sets for the current baseline
         fake_percentage = int(exp.split('_')[5])
         curr_exp_path = os.path.join(experiments_dir, exp)
@@ -38,9 +34,9 @@ def main(args):
         os.makedirs(embeddings_dir, exist_ok=True)
 
         # Get the training and test sets dataframes
-        train_df = pd.read_csv(os.path.join(curr_exp_path, 'dataframes', 'Train'))
+        train_df = pd.read_csv(os.path.join(curr_exp_path, 'dataframes', 'Train_df.csv'))
         train_df = drop_unnamed_columns(train_df)
-        test_df = pd.read_csv(os.path.join(curr_exp_path, 'dataframes', 'Test'))
+        test_df = pd.read_csv(os.path.join(curr_exp_path, 'dataframes', 'Test_df.csv'))
         test_df = drop_unnamed_columns(test_df)
 
         num_workers = 4
@@ -70,103 +66,23 @@ def main(args):
         
         # Model
         model = EcgResNet34(num_classes=1, layers=(1, 1, 1, 1))
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         model.to(device)
 
         # Load the saved model
         model = load_latest_model(model, curr_exp_path)
         
         # Get embeddings
-        create_and_save_embeddings(model, train_loader, embeddings_dir, 'Train', curr_exp_path)
-        create_and_save_embeddings(model, test_loader, embeddings_dir, 'Test', curr_exp_path)
-        
-        # embeddings = []
-        # labels = []
-        # preds = []
-        # fakes = []
-        # intervals = []
-
-        # with torch.no_grad():
-        #     for (inputs, targets), meta_data in tqdm(train_loader):
-        #         inputs = inputs.to(device).squeeze(1)
-        #         targets = targets.to(device).float()
-
-        #         embedding = model(inputs, return_embedding=True)
-        #         outputs = model(inputs).squeeze(1)
-                
-        #         # Threshold the predictions
-        #         thresholded_predictions = np.where(outputs.cpu().numpy() >= config['classifier_th'], 1, 0)        
-
-        #         embeddings.append(embedding.cpu().numpy())
-        #         labels.append(targets.cpu().numpy())
-        #         preds.append(thresholded_predictions.astype(int))
-        #         fakes.append(meta_data['fake'])
-        #         intervals.append(meta_data['interval_path'])
-
-        # embeddings = np.concatenate(embeddings)
-        # labels = np.concatenate(labels)
-        # preds = np.concatenate(preds)
-        # fakes = np.concatenate(fakes)
-        # intervals = np.concatenate(intervals)
-
-        # # Save the embeddings
-        # np.save(os.path.join(embeddings_dir, 'embeddings.npy'), embeddings)
-
-        # # Reduce dimensionality
-        # pca = PCA(n_components=2)
-        # embeddings_reduced = pca.fit_transform(embeddings)
-
-        # # Save the reduced embeddings
-        # np.save(os.path.join(embeddings_dir, 'embeddings_reduced.npy'), embeddings_reduced)
-
-        # # Create a DataFrame
-        # df = pd.DataFrame(embeddings_reduced, columns=['component1', 'component2'])
-        # df['label'] = labels
-        # df['prediction'] = preds
-        # df['fake'] = fakes
-        # df['interval_path'] = intervals
-
-        # # Save the DataFrame
-        # df.to_csv(os.path.join(embeddings_dir, 'embeddings_plotly.csv'), index=False)
-
-        # # Plot
-        # fig1 = px.scatter(df, x='component1', y='component2',
-        #                 symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
-        #                 color='label',  # Coloring according to the label values
-        #                 hover_data=['label', 'prediction', 'fake', 'interval_path'])
-
-        # # Save the figure as an HTML file
-        # pio.write_html(fig1, os.path.join(embeddings_dir, 'label_embeddings_pca_2d.html'))
-        
-        # # report the plotly figure
-        # clearml_task.get_logger().report_plotly(
-        # title="Classifier Embeddings - Labels", series="Labels", iteration=0, figure=fig1
-        # )
-
-        # # fig1.show()
-        
-        # fig2 = px.scatter(df, x='component1', y='component2',
-        #                 symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
-        #                 color='fake',  # Coloring according to the label values
-        #                 hover_data=['label', 'prediction', 'fake', 'interval_path'])
-
-        # # Save the figure as an HTML file
-        # pio.write_html(fig2, os.path.join(embeddings_dir, 'fake_embeddings_pca_2d.html'))
-        
-        # # report the plotly figure
-        # clearml_task.get_logger().report_plotly(
-        # title="Classifier Embeddings - Fake", series="Fake vs. Real", iteration=0, figure=fig2
-        # )
-
-        # # fig2.show()
+        create_and_save_embeddings(model, train_loader, embeddings_dir, 'Train', device)
+        create_and_save_embeddings(model, test_loader, embeddings_dir, 'Test', device)
 
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Classifier Trainer')
-    parser.add_argument('--config', type=str, default='Classifier/classifier_config.yaml', help='Path to the configuration file')    
+    parser = argparse.ArgumentParser(description='Fake experiments embddings')
+    parser.add_argument('--experiments_dir', type=str, default='/tcmldrive/NogaK/ECG_classification/experiments/', help='Path to the experiments directory')    
+    parser.add_argument('--real_data_folder_path', type=str, default='/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/', help='Path to the real data directory')    
+    parser.add_argument('--fake_data_folder_path', type=str, default='/tcmldrive/NogaK/ECG_classification/data/fake_data_6_secs_50000_samples_gen2/', help='Path to the fake generated data directory')    
+    parser.add_argument('--batch_size', type=int, default=512, help='batch_size')
     args = parser.parse_args()
-    config = load_config(args.config)
-    exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
-    experiments = [exp for exp in os.listdir(exp_base_dir) if exp.startswith('tcml_Classifier_mixed_data_gen2_')]
-    main(config, experiments)
+    main(args)
