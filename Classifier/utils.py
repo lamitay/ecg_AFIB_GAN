@@ -595,6 +595,227 @@ def create_and_save_embeddings(model, data_loader, embeddings_dir, d_type, devic
         fig4.write_image(os.path.join(embeddings_dir, f'fake_embeddings_{d_type}_tSNE_2d.png'))
 
 
+def plot_pca_from_df(reduced_embeddings_df_path, output_dir, d_type, fake_perc, only_AF=False):
+    
+    # Read df
+    df = pd.read_csv(reduced_embeddings_df_path, index_col=False)
+    
+    # Plot PCA
+    fig1 = px.scatter(df, x='component1', y='component2',
+                      symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                      color='label',  # Coloring according to the label values
+                      hover_data=['label', 'prediction', 'fake', 'interval_path'])
+    fig1.update_layout(title_text=f'{fake_perc}%_{d_type}_label_embeddings_PCA')
+
+    # Save the figure as an HTML file
+    pio.write_html(fig1, os.path.join(output_dir, f'{fake_perc}%_{d_type}_label_embeddings_PCA_2d.html'))
+   
+    # Save the figure as png
+    fig1.write_image(os.path.join(output_dir, f'{fake_perc}%_{d_type}_label_embeddings_PCA_2d.png'))
+
+
+    # Plot the fake scatter only for the training set where there are fake samples
+    if d_type != "Test":
+        # if flag only_AF is true, reduce the df to only plot the AF class (label==1)
+        if only_AF:
+            df = df[df['label']==1]
+
+        fig2 = px.scatter(df, x='component1', y='component2',
+                          symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                          color='fake',  # Coloring according to the label values
+                          hover_data=['label', 'prediction', 'fake', 'interval_path'])
+        fig2.update_layout(title_text=f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_PCA')
+
+
+        # Save the figure as an HTML file
+        pio.write_html(fig2, os.path.join(output_dir, f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_PCA_2d.html'))
+        
+        # Save figures as png
+        fig2.write_image(os.path.join(output_dir, f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_PCA_2d.png'))
+
+    return fig1, fig2
+
+
+def plot_tsne_from_df(reduced_embeddings_df_path, output_dir, d_type, fake_perc, only_AF=False):
+    
+    # Read df
+    df = pd.read_csv(reduced_embeddings_df_path, index_col=False)
+
+    # Plot PCA
+    fig1 = px.scatter(df, x='component1', y='component2',
+                      symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                      color='label',  # Coloring according to the label values
+                      hover_data=['label', 'prediction', 'fake', 'interval_path'])
+    fig1.update_layout(title_text=f'{fake_perc}%_{d_type}_label_embeddings_t-SNE')
+
+    # Save the figure as an HTML file
+    pio.write_html(fig1, os.path.join(output_dir, f'{fake_perc}%_{d_type}_label_embeddings_t-SNE_2d.html'))
+   
+    # Save the figure as png
+    fig1.write_image(os.path.join(output_dir, f'{fake_perc}%_{d_type}_label_embeddings_t-SNE_2d.png'))
+
+    # Plot the fake scatter only for the training set where there are fake samples
+    if d_type != "Test":            
+        # if flag only_AF is true, reduce the df to only plot the AF class (label==1)
+        if only_AF:
+            df = df[df['label']==1]
+
+        fig2 = px.scatter(df, x='component1', y='component2',
+                          symbol=df['fake'].map({0: "cross", 1: "circle"}),  # Different symbols for 'fake' status
+                          color='fake',  # Coloring according to the label values
+                          hover_data=['label', 'prediction', 'fake', 'interval_path'])
+        fig2.update_layout(title_text=f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_t-SNE')
+
+        # Save the figure as an HTML file
+        pio.write_html(fig2, os.path.join(output_dir, f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_t-SNE_2d.html'))
+        
+        # Save figures as png
+        fig2.write_image(os.path.join(output_dir, f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_t-SNE_2d.png'))
+
+    return fig1, fig2
+
+
+import matplotlib.pyplot as plt
+
+def plot_pca_from_df_mpl(reduced_embeddings_df_path, output_dir, d_type, fake_perc, only_AF=False):
+    """
+    Function to read PCA reduced embeddings from a csv file and plot them.
+
+    Parameters:
+    - reduced_embeddings_df_path: str, path to the csv file containing PCA reduced embeddings.
+    - output_dir: str, directory path where the plot will be saved.
+    - d_type: str, type of data (Training or Testing).
+    - fake_perc: int, percentage of fake data present in the dataset.
+    - only_AF: bool, if True, only plots the AF class.
+
+    Returns:
+    - fig: matplotlib figure object.
+    - ax: matplotlib axis object.
+    """
+    
+    # Read df
+    df = pd.read_csv(reduced_embeddings_df_path, index_col=False)
+
+    # Plot the fake scatter only for the training set where there are fake samples
+    if d_type != "Test":
+        # if flag only_AF is true, reduce the df to only plot the AF class (label==1)
+        if only_AF:
+            df = df[df['label'] == 1]
+
+        # Create a matplotlib figure
+        fig, ax = plt.subplots()
+
+        # Plot real data
+        ax.scatter(df[df['fake']==0]['component1'], df[df['fake']==0]['component2'], color='blue', marker='o', s=10, label='Real')
+        
+        # Plot fake data
+        ax.scatter(df[df['fake']==1]['component1'], df[df['fake']==1]['component2'], color='orange', marker='o', s=10, label='Fake')
+        
+        ax.set_title(f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_PCA')
+
+        # Add a legend
+        ax.legend()
+
+        # Save the figure as png
+        fig.savefig(os.path.join(output_dir, f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_PCA_2d.png'))
+
+
+    return fig, ax
+
+
+def plot_tsne_from_df_mpl(reduced_embeddings_df_path, output_dir, d_type, fake_perc, only_AF=False):
+    """
+    Function to read t-SNE reduced embeddings from a csv file and plot them.
+
+    Parameters:
+    - reduced_embeddings_df_path: str, path to the csv file containing t-SNE reduced embeddings.
+    - output_dir: str, directory path where the plot will be saved.
+    - d_type: str, type of data (Training or Testing).
+    - fake_perc: int, percentage of fake data present in the dataset.
+    - only_AF: bool, if True, only plots the AF class.
+
+    Returns:
+    - fig: matplotlib figure object.
+    - ax: matplotlib axis object.
+    """
+    
+    # Read df
+    df = pd.read_csv(reduced_embeddings_df_path, index_col=False)
+
+    # Plot the fake scatter only for the training set where there are fake samples
+    if d_type != "Test":            
+        # if flag only_AF is true, reduce the df to only plot the AF class (label==1)
+        if only_AF:
+            df = df[df['label'] == 1]
+            
+        # Create a matplotlib figure
+        fig, ax = plt.subplots()
+
+                # Plot real data
+        ax.scatter(df[df['fake']==0]['component1'], df[df['fake']==0]['component2'], color='blue', marker='o', s=10, label='Real')
+        
+        # Plot fake data
+        ax.scatter(df[df['fake']==1]['component1'], df[df['fake']==1]['component2'], color='orange', marker='o', s=10, label='Fake')
+        
+        ax.set_title(f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_t-SNE')
+
+        # Add a legend
+        ax.legend()
+        
+        # Save the figure as png
+        fig.savefig(os.path.join(output_dir, f'{fake_perc}%_{d_type}_AF_class_fake_embeddings_t-SNE_2d.png'))
+
+    return fig, ax
+
+
+def create_subplot_grid(fig_axes, num_rows, num_cols, output_dir, reduce_met):
+    """
+    Function to create a grid of sub-plots for PCA or t-SNE reduced embeddings.
+
+    Parameters:
+    - fig_axes: list, each element is a tuple containing a matplotlib figure object and its associated axis.
+    - num_rows: int, number of rows in the grid.
+    - num_cols: int, number of columns in the grid.
+    - output_dir: str, directory path where the plot will be saved.
+    - reduce_met: str, reduction method ('PCA' or 't-SNE').
+
+    Returns:
+    - fig: matplotlib figure object.
+    - axs: matplotlib axis object.
+    """
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(15, 15))
+    fig.suptitle(f'Fake percentage AF class training set {reduce_met} embeddings', fontsize=20)
+
+    for i, ax in enumerate(axs.flatten()):
+        # Skip unnecessary sub-plots
+        if i >= len(fig_axes):
+            ax.axis('off')  # Hide unnecessary sub-plots
+            continue
+
+        fig, sub_ax = fig_axes[i]
+        # Get collections from sub-axes (sub_ax)
+        for collection in sub_ax.collections:
+            ax.scatter(*collection.get_offsets().T, color=collection.get_facecolor())
+        
+        ax.set_xticks([])  # Remove x-axis values
+        ax.set_yticks([])  # Remove y-axis values
+        ax.set_title(sub_ax.get_title())
+        ax.legend(['Real', 'Fake'])
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, f'fake_percentage_AF_class_training_set_{reduce_met}_embeddings.png'))  # Save the figure
+    # plt.show()
+
+    return fig, axs
+
+
+def get_file_paths(experiments_dir, experiments, filename):
+    file_paths = [os.path.join(experiments_dir, exp, 'embedding_results', filename) for exp in experiments if os.path.isfile(os.path.join(experiments_dir, exp, 'embedding_results', filename))]
+    return file_paths
+
+
+
+
 if __name__ == '__main__':
     # Create external dataset:
     folder_path = '/tcmldrive/NogaK/ECG_classification/training2017'
