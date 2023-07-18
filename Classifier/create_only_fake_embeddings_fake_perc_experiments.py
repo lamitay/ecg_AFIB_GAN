@@ -53,7 +53,7 @@ def main(args):
         fig_axes.append((fig, ax))
 
     # Create the subplot grid
-    create_subplot_grid(fig_axes, 3, 4, output_path, reduce_met='PCA')
+    create_subplot_grid(fig_axes, 4, 3, output_path, reduce_met='PCA')
 
     # Close all the figure windows
     plt.close('all')
@@ -67,7 +67,7 @@ def main(args):
         fig_axes.append((fig, ax))
 
     # Create the subplot grid
-    create_subplot_grid(fig_axes, 3, 4, output_path, reduce_met='t-SNE')
+    create_subplot_grid(fig_axes, 4, 3, output_path, reduce_met='t-SNE')
     
     # Close all the figure windows
     plt.close('all')
