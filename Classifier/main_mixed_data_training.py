@@ -15,7 +15,7 @@ from transform import Normalize
 import random
 
 
-def main(config, exp_name=None):
+def main(config, exp_name=None, train_fake_perc=10):
     
     # Define the experiment directories
     if config['user'] == 'Noga':
@@ -32,7 +32,7 @@ def main(config, exp_name=None):
         data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
     
     if exp_name is None:
-        exp_name = f"{config['user']}_{config['experiment_name']}_{config['fake_prec']}_fake_percent"
+        exp_name = f"{config['user']}_{config['experiment_name']}_{train_fake_perc}_fake_percent"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
     
     if config['clearml']:
@@ -52,7 +52,8 @@ def main(config, exp_name=None):
                                     clearml_task= clearml_task,
                                     transform = transforms.Compose([transforms.ToTensor(), Normalize()]), 
                                     config=config, 
-                                    d_type='Train')
+                                    d_type='Train',
+                                    train_fake_perc=train_fake_perc)
     print('class distribution for the train_dataset')
     print_dataset_distribution(train_dataset)
     train_loader = DataLoader(train_dataset, 
@@ -91,7 +92,7 @@ def main(config, exp_name=None):
     # Model and optimizers config
     model = EcgResNet34(num_classes=1, layers=(1, 1, 1, 1))
     if config['user'] == 'Noga' or config['user'] == 'tcml':
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     
@@ -115,10 +116,12 @@ def main(config, exp_name=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classifier Trainer')
-    parser.add_argument('--config', type=str, default='Classifier/classifier_config.yaml', help='Path to the configuration file')    
+    parser.add_argument('--config', type=str, default='Classifier/classifier_config.yaml', help='Path to the configuration file')
+    parser.add_argument('--train_fake_perc', type=int, default=10, help='Perecentage of fake data in the training set')
     args = parser.parse_args()
     config = load_config(args.config)
-    exp_name = 'Classifier_mixed_data_10k_fake_samples_gen2'
-    # exp_name = None
-    main(config, exp_name)
+    train_fake_perc = args.train_fake_perc
+    # exp_name = 'Classifier_mixed_data_gen2'
+    exp_name = None
+    main(config, exp_name, train_fake_perc)
 

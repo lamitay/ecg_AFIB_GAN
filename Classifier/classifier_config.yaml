@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'classifier_train_on_dataset_with_80%_normal_intervals'
+experiment_name: 'Classifier_mixed_data_gen2'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -10,7 +10,10 @@ bsqi_th: 0.925
 real_data_path: '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
 real_data_df_path: '/tcmldrive/NogaK/ECG_classification/experiments/tcml_classifier_real_data_training_balanced_classes_20230630_18_28_45/dataframes/'
 fake_data_path: '/tcmldrive/NogaK/ECG_classification/data/fake_data_6_secs_50000_samples_gen2/'
-# Baseline clsfr
+
+# # Baseline 80% Normal class
+# ckpt_for_inference: '/tcmldrive/NogaK/ECG_classification/experiments/tcml_classifier_train_on_dataset_with_80%_normal_intervals_20230712_20_07_46/models/epoch_13_model.pth'
+# Baseline clsfr (60% Normal class)
 ckpt_for_inference: '/tcmldrive/NogaK/ECG_classification/experiments/tcml_classifier_real_data_training_balanced_classes_20230630_18_28_45/models/epoch_16_model.pth'
 # # Gen1 clsfr
 # ckpt_for_inference: '/tcmldrive/NogaK/ECG_classification/experiments/Classifier_mixed_data_5000_fake_samples_20230630_23_28_22/models/epoch_17_model.pth'
@@ -37,7 +40,7 @@ classifier_th: 0.75
 sample_length: 6
 fs: 250
 overlap: 0
-fake_prec: 20
+# fake_prec: 20
 
 # GAN configs
 GAN_epochs: 500

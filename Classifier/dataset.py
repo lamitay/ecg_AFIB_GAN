@@ -102,9 +102,7 @@ class AF_dataset(Dataset):
         return (signal, label), meta_data.to_dict()
     
 
-class AF_mixed_dataset(Dataset): 
-    """Dataset for AF classification, mixed real and fake AF intervals 
-    """
+class AF_mixed_dataset(Dataset):
     def __init__(self, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, config=None, d_type='No data type specified'):
         super().__init__()
 
@@ -116,17 +114,23 @@ class AF_mixed_dataset(Dataset):
         real_df = pd.read_csv(os.path.join(config['real_data_df_path'], d_type + '_df.csv'))
         real_df = drop_unnamed_columns(real_df)
         real_df['fake'] = 0
-
+        
         # Add fake data only to training set
         if d_type == 'Train':
             fake_df = pd.read_csv(os.path.join(self.fake_data_path, 'meta_data.csv'))
             fake_df = drop_unnamed_columns(fake_df)
-            if isinstance(config['fake_prec'], int):
-                fake_df = fake_df.sample(n=int((config['fake_prec']/100) * len(fake_df)))
             fake_df['fake'] = 1
+
+            # Split the training data into different amounts of real vs fake
+            tot_pathology_train_amount = len(real_df[real_df['label']==1])
+            real_pathology_amount = int(((100 - train_fake_perc) / 100) * tot_pathology_train_amount)
+            fake__pathology_amount = int((train_fake_perc / 100) * tot_pathology_train_amount)
+            real_normal_df = real_df[real_df['label']==0]
+            real_pathology_df = real_df[real_df['label']==1].sample(n=real_pathology_amount)
+            fake_df = fake_df.sample(n=fake__pathology_amount) 
             
             # Concatenate the real and fake DataFrames
-            self.meta_data = pd.concat([real_df, fake_df], ignore_index=True)
+            self.meta_data = pd.concat([real_normal_df, real_pathology_df, fake_df], ignore_index=True)
         
         else:
             self.meta_data = real_df.copy()
@@ -160,6 +164,52 @@ class AF_mixed_dataset(Dataset):
     def __len__(self):
         return len(self.meta_data)
     
+    def __getitem__(self, index):
+        signal_path = self.meta_data.iloc[index]['interval_path']
+        if self.meta_data.iloc[index]['fake']:
+            folder_path = self.fake_data_path
+        else:
+            folder_path = self.real_data_path
+        signal = np.load(os.path.join(folder_path,'intervals',signal_path))
+        label = self.meta_data.iloc[index]['label']
+        meta_data = self.meta_data.iloc[index]    
+        signal = signal.reshape((1, signal.size))
+        if self.transform:
+            signal = self.transform(signal)
+
+        return (signal, label), meta_data.to_dict()
+
+
+class AF_mixed_dataset_from_df(Dataset):
+    def __init__(self, meta_data_df, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, d_type='No data type specified'):
+        super().__init__()
+
+        self.transform = transform
+        self.real_data_path = real_data_folder_path
+        self.fake_data_path = fake_data_folder_path
+
+        # Use the provided DataFrame that holds the metadata of a dataset created by AF_mixed_dataset experiment
+        self.meta_data = meta_data_df.copy()
+
+        label_stat = get_column_stats(self.meta_data, 'label')
+        fake_stat = get_column_stats(self.meta_data, 'fake')
+
+        print('--------------------------------------------------------------')
+        print(f'Read mixed {d_type} dataset with {len(self.meta_data)} intervals')
+        print("\nLabel distribution:\n", label_stat)
+        print("\nFake distribution:\n", fake_stat)
+        print('--------------------------------------------------------------')
+
+        if clearml_task:
+            report_df_to_clearml(self.meta_data, clearml_task, d_type)
+            report_df_to_clearml(label_stat, clearml_task, d_type, title='label_stats')
+            report_df_to_clearml(fake_stat, clearml_task, d_type,  title='fake_stats')
+
+
+    def __len__(self):
+        return len(self.meta_data)
+
+
     def __getitem__(self, index):
         signal_path = self.meta_data.iloc[index]['interval_path']
         if self.meta_data.iloc[index]['fake']:
