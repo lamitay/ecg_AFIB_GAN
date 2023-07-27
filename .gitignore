@@ -2,3 +2,5 @@
 /logs
 /GAN/__pycache__
 /classifier/__pycache__
+/other_GAN
+/notebooks

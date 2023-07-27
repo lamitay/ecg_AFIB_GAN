@@ -15,6 +15,8 @@ import random
 
 
 class AF_dataset(Dataset):
+    """Dataset for binary classification of AF
+    """
     def __init__(self, 
                  dataset_folder_path, 
                  record_names, 
@@ -71,9 +73,6 @@ class AF_dataset(Dataset):
                     neg_indices_to_remove = [self.meta_data.index[i] for i in neg_indices_to_remove]
                     self.meta_data = self.meta_data.drop(neg_indices_to_remove)
 
-
-
-
             if config['debug']:
                 orig_size = len(self.meta_data)
                 debug_size = int(config['debug_ratio'] * orig_size)
@@ -103,7 +102,9 @@ class AF_dataset(Dataset):
         return (signal, label), meta_data.to_dict()
     
 
-class AF_mixed_dataset(Dataset):
+class AF_mixed_dataset(Dataset): 
+    """Dataset for AF classification, mixed real and fake AF intervals 
+    """
     def __init__(self, real_data_folder_path, fake_data_folder_path, clearml_task = False, exp_dir = None, transform = False, config=None, d_type='No data type specified'):
         super().__init__()
 

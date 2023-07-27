@@ -1,2 +1,4 @@
 # ecg_AFIB_GAN
-Levraging GANs for data augmentation in single lead ECG classification
+Leveraging Generative Adversarial Networks for Atrial Fibrillation Data Augmentation in Single Lead Electrocardiogram Classification
+
+
