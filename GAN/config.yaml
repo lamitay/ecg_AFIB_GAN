@@ -2,18 +2,18 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_3layersLSTM_3000epochs_slower_noise_decay'
+experiment_name: 'seqGAN_20sec_dataset_4lstmLayers_noiseSize500_noMiniBatchDis'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
 bsqi_th: 0.95
 
 # ClearML configs
-clearml: False
+clearml: True
 
 # Trainer configs
 train_prec: 80
-batch_size: 512
+batch_size: 8
 lr: 0.00001
 loss: 'binary_cross_entropy'
 optimizer: 'AdamW'
@@ -25,7 +25,7 @@ output_model_path: 'model.pth'
 classifier_th: 0.75
 
 # Dataset configs
-sample_length: 6
+sample_length: 20
 fs: 250
 overlap: 0
 
@@ -33,11 +33,11 @@ overlap: 0
 GAN_epochs: 3000
 GAN_batch_size: 512
 GAN_label: 1
-noise_size : 100
+noise_size : 500
 discriminator_lr : 0.0001
 generator_lr : 0.0001
 lstm_hid_dim : 512
-lstm_num_layers : 3
+lstm_num_layers : 4
 wgan_gp: False
 wgan_gp_lambda: 0.3
 noise_std_for_real : 0.15

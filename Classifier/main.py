@@ -32,9 +32,9 @@ def main(config, exp_name=None):
         exp_base_dir = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/experiments/'
         data_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset_processed.nosync/dataset_30_10_0/'
     elif config['user'] == 'tcml':
-        exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
+        exp_base_dir = '/tcmldrive/NogaK/ECG_classification/fixed_dataset_experiments/'
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/fixed_datasets/dataset_len20_overlab0_chan0'
     
     if exp_name is None:
         exp_name = f"{config['user']}_{config['experiment_name']}"
@@ -63,6 +63,7 @@ def main(config, exp_name=None):
                                config=config, 
                                d_type='Train',
                                negative_class_prec = 0.8)
+    
     print('class distribution for the train_dataset')
     print_dataset_distribution(train_dataset)
     train_loader = DataLoader(train_dataset, 
@@ -78,6 +79,7 @@ def main(config, exp_name=None):
                                     config=config, 
                                     d_type='Validation',
                                     negative_class_prec = 0.8)
+    
     print('class distribution for the validation_dataset')
     print_dataset_distribution(validation_dataset)
     validation_loader = DataLoader(validation_dataset, 
@@ -93,6 +95,7 @@ def main(config, exp_name=None):
                               config=config, 
                               d_type='Test',
                             negative_class_prec = 0.8)
+    
     print('class distribution for the test_dataset')
     print_dataset_distribution(test_dataset)
     test_loader = DataLoader(test_dataset, 

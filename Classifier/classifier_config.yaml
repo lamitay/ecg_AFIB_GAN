@@ -2,12 +2,12 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'Classifier_mixed_data_gen2'
+experiment_name: 'Classifier_real_data_20sec'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
 bsqi_th: 0.925
-real_data_path: '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
+real_data_path: '/tcmldrive/NogaK/ECG_classification/fixed_datasets/dataset_len20_overlab0_chan0'
 real_data_df_path: '/tcmldrive/NogaK/ECG_classification/experiments/tcml_classifier_real_data_training_balanced_classes_20230630_18_28_45/dataframes/'
 fake_data_path: '/tcmldrive/NogaK/ECG_classification/data/fake_data_6_secs_50000_samples_gen2/'
 

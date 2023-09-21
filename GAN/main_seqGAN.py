@@ -33,9 +33,9 @@ def main(config):
         exp_base_dir = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/experiments/'
         data_folder_path = '/Users/amitaylev/Desktop/Amitay/Msc/4th semester/ML_physiological_time_series_analysis/Project/dataset_processed.nosync/dataset_30_10_0/'
     elif config['user'] == 'tcml':
-        exp_base_dir = '/tcmldrive/NogaK/ECG_classification/experiments/'
+        exp_base_dir = '/tcmldrive/NogaK/ECG_classification/fixed_dataset_experiments/'
         records_folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
-        data_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
+        data_folder_path = '/tcmldrive/NogaK/ECG_classification/fixed_datasets/dataset_len20_overlab0_chan0'
     
     exp_name = f"{config['user']}_{config['experiment_name']}"
     exp_dir = build_exp_dirs(exp_base_dir, exp_name)
@@ -102,6 +102,7 @@ def main(config):
                               config=config, 
                               d_type='Test',
                               GAN_label=config['GAN_label'])
+    
     test_loader = DataLoader(test_dataset, 
                              batch_size=config['GAN_batch_size'], 
                              shuffle=False,  
@@ -110,7 +111,7 @@ def main(config):
                              generator=g)
 
     if config['user'] == 'Noga' or config['user'] == 'tcml':
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     

@@ -22,7 +22,7 @@ def calc_mean_rr(x, fs):
 def COSEn(x, fs, debug = False):
     RR_intervals, mean_RR = calc_mean_rr(x, fs)
     r =  0.1*np.std(x)
-    sample_entropy = ent.sample_entropy(x, 2, r)
+    sample_entropy = ent.sample_entropy(RR_intervals, 2, r)
     cosen = sample_entropy[0] - np.log(2*r) - np.log(mean_RR)
     if debug:
         return cosen, sample_entropy[0]
@@ -73,18 +73,19 @@ def calc_cosen_for_dataset(dataset_folder_path, fs, num_of_samples = None, calc_
         return af_cosen
 
 if __name__ == "__main__":
-    real_dataset_folder_path = '/tcmldrive/NogaK/ECG_classification/data/dataset_len6_overlab0_chan0/'
-    real_af_cosen, normal_cosen = calc_cosen_for_dataset(real_dataset_folder_path, fs = 250, num_of_samples = 10000, calc_normal_class=True)
-    fake_dataset_folder_path = '/tcmldrive/NogaK/ECG_classification/data/fake_data_6_secs_50000_samples_gen2/'
-    fake_af_cosen = calc_cosen_for_dataset(fake_dataset_folder_path, fs = 250, num_of_samples = 10000, calc_normal_class=False)
+    real_dataset_folder_path = '/tcmldrive/NogaK/ECG_classification/fixed_datasets/dataset_len6_overlab0_chan0'
+    real_af_cosen, normal_cosen = calc_cosen_for_dataset(real_dataset_folder_path, fs = 250, num_of_samples = 1000, calc_normal_class=True)
+    # fake_dataset_folder_path = '/tcmldrive/NogaK/ECG_classification/data/fake_data_6_secs_50000_samples_gen2/'
+    # fake_af_cosen = calc_cosen_for_dataset(fake_dataset_folder_path, fs = 250, num_of_samples = 10000, calc_normal_class=False)
     plt.figure()
     plt.hist(real_af_cosen, bins=30, alpha=0.5)
     plt.hist(normal_cosen, bins=30, alpha=0.5)
-    plt.hist(fake_af_cosen, bins=30, alpha=0.5)
-    plt.legend(['AF - real', 'Normal - real', 'AF - fake'])
-    plt.savefig('realNfake_af_normal.png')
-    plt.title('COSEn of real and synthetic ECG')
-    plt.close()
+    # plt.hist(fake_af_cosen, bins=30, alpha=0.5)
+    plt.legend(['AF - real', 'Normal - real'])#, 'AF - fake'])
+    # plt.savefig('realNfake_af_normal.png')
+    plt.title('COSEn of AF and normal ECG - 6 seconds intervals')
+    plt.show()
+    # plt.close()
 
 
 

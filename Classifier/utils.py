@@ -154,6 +154,11 @@ def split_records_to_intervals(record, annotation, qrs, sample_length, channel, 
     for i, idx in enumerate(annotation.sample):
         if annotation.aux_note[i] == '(N':
             continue #label stays zero
+        elif annotation.aux_note[i] == '(AFL' or annotation.aux_note[i] == '(J':
+            if i == len(annotation.sample)-1: #the last iteration in the loop:
+                 annots_signal[idx:] = -1
+            else:
+                annots_signal[idx:annotation.sample[i+1]] = -1
         else:
             if i == len(annotation.sample)-1: #the last iteration in the loop:
                  annots_signal[idx:] = 1
@@ -265,9 +270,9 @@ def save_intervals_from_record(dataset_path, intervals, annots, meta_data, fs):
         interval_meta_data = {'record_file_name' : record_file_name,
                               'interval_path' : file_name,
                               'image_path' : file_name[:-4]+'.png',
-                              'num_of_bits' : meta_data['num_of_bit'][i],
-                              'bsqi_score' : bsqi_score,
-                              'label' : label}
+                              'num_of_bits' : meta_data['num_of_bit'][i].item(),
+                              'bsqi_score' : bsqi_score.item(),
+                              'label' : label.item()}
         
         dfs.append(pd.Series(interval_meta_data))
     record_meta_data = pd.concat(dfs,axis=1).T
@@ -818,27 +823,8 @@ def get_file_paths(experiments_dir, experiments, filename):
 
 if __name__ == '__main__':
     # Create external dataset:
-    folder_path = '/tcmldrive/NogaK/ECG_classification/training2017'
-    create_dataset_physioNet_challenge(folder_path=folder_path, path_to_save_dataset='/tcmldrive/NogaK/ECG_classification/', sample_length=6, channel=0, overlap=0,calc_bsqi=True)
+    folder_path = '/tcmldrive/NogaK/ECG_classification/files/'
+    # create_dataset_physioNet_challenge(folder_path=folder_path, path_to_save_dataset='/tcmldrive/NogaK/ECG_classification/', sample_length=6, channel=0, overlap=0,calc_bsqi=True)
+    record_names =  get_record_names_from_folder(folder_path)
+    create_dataset(folder_path, record_names, '/tcmldrive/NogaK/ECG_classification/fixed_datasets/', 20, 0, 0, calc_bsqi = True)
 
-
-    # folder_path = 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse/files/'
-    # record_names = []
-    # for file in os.listdir(folder_path):
-    #     if file.endswith('.hea'):  # we find only the .hea files.
-    #         record_names.append(file[:-4])  # we remove the extensions, keeping only the number itself.
-
-    # create_dataset(folder_path, record_names, 'C:/Users/nogak/Desktop/MyMaster/YoachimsCourse', 30, 0, 5, calc_bsqi = True)
-    # ## TESTS :
-    # # test1 verify that no mixed labels intervals are being created:
-    # x = torch.rand(100000)
-    # y = torch.zeros(100000)
-    # y[::2] = 1
-    # interval, labels = segment_and_label(x, y, 100, 0)
-    # assert len(interval) == 0, 'In this tests all intervals should have mixed labels so no intervals should be created'
-
-    # # test2 verify that if there are no mixed labels, all the intervals are being created:
-    # x = torch.rand(100000)
-    # y = torch.zeros(100000)
-    # interval, labels = segment_and_label(x, y, 100, 0)
-    # assert len(interval) == 100000/100, 'In this tests all intervals that possible needs to be created'
