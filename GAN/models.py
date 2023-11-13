@@ -96,9 +96,9 @@ class DCDiscriminator(nn.Module):
             nn.Dropout(0.5))  # Add another dropout layer with dropout probability of 0.5
             
         self.layer5 = nn.Sequential(nn.Conv1d(512, 1, kernel_size=10, stride=1, padding=0, bias=False))
-        self.minibatchDis = MinibatchDiscrimination1d(297, 50, intermediate_features=5)
+        self.minibatchDis = MinibatchDiscrimination1d(297, 150, intermediate_features=16)
         # self.avgPool = nn.AvgPool1d(kernel_size=298)
-        self.fc = nn.Linear(in_features=297+50, out_features=1)
+        self.fc = nn.Linear(in_features=297+150, out_features=1)
         self.sig = nn.Sigmoid()
         
 

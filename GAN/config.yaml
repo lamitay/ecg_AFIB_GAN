@@ -2,7 +2,7 @@ seed: 336018
 
 # Experiment configs
 user: 'tcml'
-experiment_name: 'seqGAN_20sec_dataset_4lstmLayers_noiseSize500_noMiniBatchDis'
+experiment_name: 'seqGAN_20sec_dataset_4lstmLayers_noiseSize500_withMiniBatchDis_widerLSTM'
 debug: False
 debug_ratio: 0.01
 debug_epochs: 3
@@ -36,8 +36,8 @@ GAN_label: 1
 noise_size : 500
 discriminator_lr : 0.0001
 generator_lr : 0.0001
-lstm_hid_dim : 512
-lstm_num_layers : 4
+lstm_hid_dim : 1024
+lstm_num_layers : 3
 wgan_gp: False
 wgan_gp_lambda: 0.3
-noise_std_for_real : 0.15
+noise_std_for_real : 0.1

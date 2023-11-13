@@ -1,4 +1,5 @@
 #!/bin/bash
+
 export SLURM_NTASKS=4
 
 #SBATCH --job-name=train_GAN
@@ -6,7 +7,7 @@ export SLURM_NTASKS=4
 #SBATCH --error=logs/%x.%j.err
 #SBATCH --mem=50GB 
 #SBATCH --gres=gpu:2
- 
+    
 hostname
 pwd
 
